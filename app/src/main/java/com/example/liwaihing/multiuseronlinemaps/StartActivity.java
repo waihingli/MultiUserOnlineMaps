@@ -14,15 +14,14 @@ public class StartActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
-
-//        startService();
+        startService();
 //        permissionCheck();
         startUpFinish();
     }
 
     private void startService(){
-        startActivity(LocationService.class);
-        startActivity(SensorService.class);
+        startService(LocationService.class);
+        startService(SensorService.class);
     }
     /*
         private void permissionCheck(){
@@ -55,6 +54,11 @@ public class StartActivity extends Activity {
     private void startActivity(Class c){
         Intent i = new Intent(this, c);
         startActivity(i);
+    }
+
+    private void startService(Class c){
+        Intent i = new Intent(this, c);
+        startService(i);
     }
 
     @Override

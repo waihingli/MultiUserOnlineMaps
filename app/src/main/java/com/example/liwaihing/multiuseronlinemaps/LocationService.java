@@ -9,6 +9,8 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.util.Log;
+import android.widget.Toast;
 
 /**
  * Created by WaiHing on 21/2/2016.
@@ -46,6 +48,8 @@ public class LocationService extends Service implements LocationListener {
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+
+        Log.i("success", "Location Service started");
 
         return super.onStartCommand(intent, flags, startId);
     }

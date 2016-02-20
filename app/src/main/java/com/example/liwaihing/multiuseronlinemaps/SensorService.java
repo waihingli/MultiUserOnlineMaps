@@ -7,6 +7,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.IBinder;
+import android.util.Log;
 
 /**
  * Created by WaiHing on 21/2/2016.
@@ -34,6 +35,8 @@ public class SensorService  extends Service implements SensorEventListener {
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         filterHelper = new FilterHelper();
+
+        Log.i("Service", "Sensor Service started");
 
         return super.onStartCommand(intent, flags, startId);
     }

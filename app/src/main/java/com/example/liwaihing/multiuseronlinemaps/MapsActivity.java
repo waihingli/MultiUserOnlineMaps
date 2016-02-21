@@ -3,24 +3,38 @@ package com.example.liwaihing.multiuseronlinemaps;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.location.Location;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Toast;
 
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
+
 public class MapsActivity extends FragmentActivity {
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private Location currentLocation = null;
     private Velocity velocity;
+    private MyBroadcastReceiver myBroadcastReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+        myBroadcastReceiver = new MyBroadcastReceiver();
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Params.LOCATION_SERVICE);
+        intentFilter.addAction(Params.SENSOR_SERVICE);
+        this.registerReceiver(myBroadcastReceiver, intentFilter);
+        velocity = Velocity.getInstance();
         setUpMapIfNeeded();
     }
 
@@ -30,21 +44,31 @@ public class MapsActivity extends FragmentActivity {
         setUpMapIfNeeded();
     }
 
-    /**
-     * Sets up the map if it is possible to do so (i.e., the Google Play services APK is correctly
-     * installed) and the map has not already been instantiated.. This will ensure that we only ever
-     * call {@link #setUpMap()} once when {@link #mMap} is not null.
-     * <p/>
-     * If it isn't installed {@link SupportMapFragment} (and
-     * {@link com.google.android.gms.maps.MapView MapView}) will show a prompt for the user to
-     * install/update the Google Play services APK on their device.
-     * <p/>
-     * A user can return to this FragmentActivity after following the prompt and correctly
-     * installing/updating/enabling the Google Play services. Since the FragmentActivity may not
-     * have been completely destroyed during this process (it is likely that it would only be
-     * stopped or paused), {@link #onCreate(Bundle)} may not be called again so we should call this
-     * method in {@link #onResume()} to guarantee that it will be called.
-     */
+    @Override
+    protected void onDestroy() {
+        stopService(LocationService.class);
+        stopService(SensorService.class);
+        this.unregisterReceiver(myBroadcastReceiver);
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+    private void onStopService(View v){
+        Intent i = new Intent(this, LocationService.class);
+        Intent j = new Intent(this, SensorService.class);
+        stopService(i);
+        stopService(j);
+    }
+
+    private void stopService(Class c){
+        Intent i = new Intent(this, c);
+        stopService(i);
+    }
+
     private void setUpMapIfNeeded() {
         // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
@@ -61,7 +85,9 @@ public class MapsActivity extends FragmentActivity {
     private void setUpMap() {
         mMap.setMyLocationEnabled(true);
         if(currentLocation != null){
-
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), 16));
+        }else{
+            Toast.makeText(this, "Location not find", Toast.LENGTH_SHORT);
         }
     }
 
@@ -69,9 +95,18 @@ public class MapsActivity extends FragmentActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             Bundle bundle = intent.getExtras();
-            currentLocation = (Location) bundle.get("location");
-            velocity.updateGPSVelocity(currentLocation.getSpeed());
-
+            if(intent.getAction().equals(Params.LOCATION_SERVICE)){
+                if(currentLocation == null){
+                    currentLocation = (Location) bundle.get("location");
+                    setUpMap();
+                }
+                currentLocation = (Location) bundle.get("location");
+                velocity.updateGPSVelocity(currentLocation.getSpeed());
+            }
+            if(intent.getAction().equals(Params.SENSOR_SERVICE)){
+                double sensorVelocity = bundle.getDouble("sensorVelocity");
+                velocity.updateAccelerometerVelocity(sensorVelocity);
+            }
         }
     }
 }

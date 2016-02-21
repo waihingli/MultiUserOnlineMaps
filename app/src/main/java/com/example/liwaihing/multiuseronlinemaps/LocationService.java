@@ -21,16 +21,6 @@ public class LocationService extends Service implements LocationListener {
     public LocationManager locationManager;
     Intent intent;
     private Location currentLocation = null;
-    private boolean findLocation = false;
-
-    public Location getCurrentLocation(){
-        return currentLocation;
-    }
-
-    public Location getLastLocation(){
-        Location lastLocation = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), true));
-        return lastLocation;
-    }
 
     public LocationManager getLocationManager(){
         return locationManager;
@@ -49,15 +39,24 @@ public class LocationService extends Service implements LocationListener {
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 
-        Log.i("success", "Location Service started");
+        Log.i("Service", "Location Service started");
 
         return super.onStartCommand(intent, flags, startId);
     }
 
+    public Location getCurrentLocation(){
+        return currentLocation;
+    }
+
+    public Location getLastLocation(){
+        Location lastLocation = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), true));
+        return lastLocation;
+    }
+
     @Override
     public void onDestroy() {
-        super.onDestroy();
         locationManager.removeUpdates(this);
+        super.onDestroy();
     }
 
     @Override
@@ -68,11 +67,10 @@ public class LocationService extends Service implements LocationListener {
     @Override
     public void onLocationChanged(Location location) {
         currentLocation = location;
-        findLocation = true;
 
         Intent i = new Intent();
         i.putExtra("location", location);
-        i.setAction("android.intent.action.locationChange");
+        i.setAction(Params.LOCATION_SERVICE);
         sendBroadcast(i);
     }
 

@@ -12,20 +12,26 @@ import java.util.List;
  * Created by WaiHing on 23/2/2016.
  */
 public class DirectionsJSONParser {
+    private JSONObject disTimeOb;
+    private JSONObject distanceOb, durationOb;
+
     public List<List<HashMap<String,String>>> parse(JSONObject jObject){
         List<List<HashMap<String, String>>> routes = new ArrayList<>() ;
-        JSONArray jsonRoutes, jsonLegs, jsonSteps;
+        JSONArray routeArray, legArray, stepArray;
 
         try {
-            jsonRoutes = jObject.getJSONArray("routes");
-            for(int i=0;i<jsonRoutes.length();i++){
-                jsonLegs = ( (JSONObject)jsonRoutes.get(i)).getJSONArray("legs");
+            routeArray = jObject.getJSONArray("routes");
+            for(int i=0;i<routeArray.length();i++){
+                legArray = ( (JSONObject)routeArray.get(i)).getJSONArray("legs");
+                disTimeOb = legArray.getJSONObject(0);
+                distanceOb = disTimeOb.getJSONObject("distance");
+                durationOb = disTimeOb.getJSONObject("duration");
                 List path = new ArrayList<>();
-                for(int j=0;j<jsonLegs.length();j++){
-                    jsonSteps = ( (JSONObject)jsonLegs.get(j)).getJSONArray("steps");
-                    for(int k=0;k<jsonSteps.length();k++){
+                for(int j=0;j<legArray.length();j++){
+                    stepArray = ( (JSONObject)legArray.get(j)).getJSONArray("steps");
+                    for(int k=0;k<stepArray.length();k++){
                         String polyline = "";
-                        polyline = (String)((JSONObject)((JSONObject)jsonSteps.get(k)).get("polyline")).get("points");
+                        polyline = (String)((JSONObject)((JSONObject)stepArray.get(k)).get("polyline")).get("points");
                         List<LatLng> list = decodePoly(polyline);
                         for(int l=0;l<list.size();l++){
                             HashMap<String, String> hm = new HashMap<>();
@@ -43,6 +49,26 @@ public class DirectionsJSONParser {
         }
 
         return routes;
+    }
+
+    public String getDistanceMeters() {
+        String s = "";
+        try {
+            s = distanceOb.getString("value");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return s;
+    }
+
+    public String getDurationSeconds(){
+        String s = "";
+        try {
+            s = durationOb.getString("value");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return s;
     }
 
     private List<LatLng> decodePoly(String encoded) {

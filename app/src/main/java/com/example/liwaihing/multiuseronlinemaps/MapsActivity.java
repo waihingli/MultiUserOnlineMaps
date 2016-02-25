@@ -9,7 +9,6 @@ import android.location.Location;
 import android.os.AsyncTask;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -22,14 +21,11 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import org.json.JSONObject;
-import org.w3c.dom.Text;
 
 import java.io.BufferedReader;
-import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.DecimalFormat;
@@ -42,9 +38,9 @@ public class MapsActivity extends FragmentActivity {
     private Location currentLocation = null;
     private Velocity velocity;
     private MyBroadcastReceiver myBroadcastReceiver;
-    private TextView tv_GPS, tv_Sensor;
-
-    private static final LatLng destination = new LatLng(22.441175, 114.018527);
+    private TextView tv_GPS, tv_Sensor, tv_Distance, tv_Duration;
+    private double distance = 0, duration = 0;
+    private static final LatLng destination = new LatLng(22.441052, 114.032718);
     private ArrayList<LatLng> markerPoints;
 
     @Override
@@ -60,6 +56,8 @@ public class MapsActivity extends FragmentActivity {
         setUpMapIfNeeded();
         tv_GPS = (TextView) findViewById(R.id.tv_GPSV);
         tv_Sensor = (TextView) findViewById(R.id.tv_SensorV);
+        tv_Distance = (TextView) findViewById(R.id.tv_distance);
+        tv_Duration = (TextView) findViewById(R.id.tv_duration);
         markerPoints = new ArrayList<>();
     }
 
@@ -126,6 +124,33 @@ public class MapsActivity extends FragmentActivity {
             downloadTask.execute(url);
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(dest, 16));
         }
+    }
+
+    public String distanceUnitConverter(double dist){
+        String s = "";
+        if (dist >= 1000){
+            s = dist/1000 + " km";
+        }else{
+            s = (int)Math.ceil(dist) + " m";
+        }
+        return s;
+    }
+
+    public String durationUnitConverter(double dura){
+        String s = "";
+        if (dura > 3600){
+            s = (int)dura/3600 + " hour" + (int)Math.ceil((dura%3600)/60) + " min";
+        }else{
+            s = (int)Math.ceil(dura/60) + " min";
+        }
+        return s;
+    }
+
+    public void distanceParser(String dist, String dura){
+        distance = Double.parseDouble(dist);
+        duration = Double.parseDouble(dura);
+        tv_Distance.setText(distanceUnitConverter(distance));
+        tv_Duration.setText(durationUnitConverter(duration));
     }
 
     private String getDirectionsUrl(LatLng origin, LatLng dest) {
@@ -210,6 +235,7 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private class ParserTask extends AsyncTask<String, Integer, List<List<HashMap<String, String>>>> {
+        private String dist, dura;
         @Override
         protected List<List<HashMap<String, String>>> doInBackground(String... jsonData) {
             JSONObject jsonObject;
@@ -218,6 +244,8 @@ public class MapsActivity extends FragmentActivity {
                 jsonObject = new JSONObject(jsonData[0]);
                 DirectionsJSONParser jsonParser = new DirectionsJSONParser();
                 routes = jsonParser.parse(jsonObject);
+                dist = jsonParser.getDistanceMeters();
+                dura = jsonParser.getDurationSeconds();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -241,9 +269,10 @@ public class MapsActivity extends FragmentActivity {
                     points.add(position);
                 }
                 lineOptions.addAll(points);
-                lineOptions.width(7);
+                lineOptions.width(12);
                 lineOptions.color(Color.GRAY);
             }
+            distanceParser(dist, dura);
             mMap.addPolyline(lineOptions);
         }
     }

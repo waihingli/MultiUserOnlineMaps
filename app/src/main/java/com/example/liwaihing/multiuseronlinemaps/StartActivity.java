@@ -6,23 +6,34 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import com.firebase.client.Firebase;
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.util.List;
 
 
-public class StartActivity extends Activity {
-    LocationManager locationManager;
-    private boolean onGPSProvider = false;
+public class StartActivity extends Activity implements GoogleApiClient.OnConnectionFailedListener{
+    private LocationManager locationManager;
+    private GoogleApiClient mGoogleApiClient;
+    private SharedPreferences settings;
+    private String username = "waihingli3";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
+        Firebase.setAndroidContext(this);
+        settings = getSharedPreferences("user_auth", MODE_PRIVATE);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if(!isMyServiceRunning(LocationService.class)) {
             startService(LocationService.class);
@@ -30,6 +41,17 @@ public class StartActivity extends Activity {
         if(!isMyServiceRunning(SensorService.class)) {
             startService(SensorService.class);
         }
+
+//        GoogleSignInOptions gso = new GoogleSignInOptions
+//                .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+//                .requestEmail()
+//                .build();
+//        mGoogleApiClient = new GoogleApiClient()
+//                .Builder(this)
+//                .enableAutoManage(this, this)
+//                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+//                .build();
+
         permissionCheck();
         if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             startUpFinish();
@@ -39,6 +61,9 @@ public class StartActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        SharedPreferences.Editor editor = settings.edit();
+        editor.putString("username", username);
+        editor.commit();
         if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             startUpFinish();
         }
@@ -122,5 +147,10 @@ public class StartActivity extends Activity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        Log.e("Connection Failed", connectionResult.getErrorMessage());
     }
 }

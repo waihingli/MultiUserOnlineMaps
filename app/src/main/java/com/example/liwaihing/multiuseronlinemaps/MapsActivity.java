@@ -7,6 +7,7 @@ import android.content.IntentFilter;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
+import android.support.multidex.MultiDex;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -37,9 +38,10 @@ public class MapsActivity extends FragmentActivity {
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private Location currentLocation = null;
     private Velocity velocity;
+    private DatabaseHelper dbHelper;
     private MyBroadcastReceiver myBroadcastReceiver;
     private TextView tv_GPS, tv_Sensor, tv_Distance, tv_Duration;
-    private double distance = 0, duration = 0;
+    private double distance = 0;
     private static final LatLng destination = new LatLng(22.441052, 114.032718);
     private ArrayList<LatLng> markerPoints;
 
@@ -53,6 +55,7 @@ public class MapsActivity extends FragmentActivity {
         intentFilter.addAction(Params.SENSOR_SERVICE);
         this.registerReceiver(myBroadcastReceiver, intentFilter);
         velocity = Velocity.getInstance();
+        dbHelper = new DatabaseHelper(this);
         setUpMapIfNeeded();
         tv_GPS = (TextView) findViewById(R.id.tv_GPSV);
         tv_Sensor = (TextView) findViewById(R.id.tv_SensorV);
@@ -158,7 +161,7 @@ public class MapsActivity extends FragmentActivity {
         if(speed < 1){
             eDuration = distance/1.4;
         }else{
-            eDuration = distance / speed;
+            eDuration = distance/speed;
         }
         return eDuration;
     }
@@ -219,6 +222,9 @@ public class MapsActivity extends FragmentActivity {
                 long time = bundle.getLong("time");
                 velocity.onSensorUpdate(acceleration, time);
                 tv_Sensor.setText(df.format(velocity.getAccelerometerVelocity()*100) + " cm/s");
+            }
+            if(currentLocation!=null) {
+                dbHelper.updateDb(currentLocation, velocity.getFinalVelocity());
             }
         }
     }
@@ -283,5 +289,11 @@ public class MapsActivity extends FragmentActivity {
             distanceParser(dist);
             mMap.addPolyline(lineOptions);
         }
+    }
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(newBase);
+        MultiDex.install(this);
     }
 }

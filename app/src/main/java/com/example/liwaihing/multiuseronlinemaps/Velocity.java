@@ -1,5 +1,7 @@
 package com.example.liwaihing.multiuseronlinemaps;
 
+import android.location.Location;
+
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -12,6 +14,7 @@ public class Velocity {
     private double GPSVelocity, AccelerometerVelocity, previousGPSVelocity, previousAccelerometerVelocity;
     private long newTime, lastTime;
     private double acceleration, accuVelocity;
+    private boolean GPSAccuracy = false;
     private int onSensorChangeCounter = 0;
 
     protected Velocity(){
@@ -39,6 +42,11 @@ public class Velocity {
         return instance;
     }
 
+    public void onGPSUpdate(Location l){
+        updateGPSVelocity(l.getSpeed());
+        onGPSAccuracy(l);
+    }
+
     public void updateGPSVelocity(double v){
         previousGPSVelocity = GPSVelocity;
         GPSVelocity = v;
@@ -49,7 +57,7 @@ public class Velocity {
         AccelerometerVelocity = v;
     }
 
-    public void setSensorAcceleration(double a, long time){
+    public void onSensorUpdate(double a, long time){
         acceleration = a;
         newTime = time;
         if (newTime > lastTime){
@@ -69,6 +77,23 @@ public class Velocity {
     private void onAverageVelocity(double timePassed) {
         double accumulatedVelocity = (accuVelocity/timePassed);
         updateAccelerometerVelocity(accumulatedVelocity);
+    }
+
+    public void onGPSAccuracy(Location l){
+        if (l.getAccuracy()>30 || l.getSpeed()==0){
+            GPSAccuracy = false;
+        }else{
+            GPSAccuracy = true;
+        }
+    }
+
+    public double getFinalVelocity(){
+        if(!GPSAccuracy){
+            finalVelocity = getAccelerometerVelocity();
+        }else {
+            finalVelocity = getGPSVelocity();
+        }
+        return finalVelocity;
     }
 
     public double getGPSVelocity() {

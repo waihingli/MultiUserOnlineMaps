@@ -13,7 +13,7 @@ import java.util.List;
  */
 public class DirectionsJSONParser {
     private JSONObject disTimeOb;
-    private JSONObject distanceOb, durationOb;
+    private JSONObject distanceOb;
 
     public List<List<HashMap<String,String>>> parse(JSONObject jObject){
         List<List<HashMap<String, String>>> routes = new ArrayList<>() ;
@@ -25,7 +25,6 @@ public class DirectionsJSONParser {
                 legArray = ( (JSONObject)routeArray.get(i)).getJSONArray("legs");
                 disTimeOb = legArray.getJSONObject(0);
                 distanceOb = disTimeOb.getJSONObject("distance");
-                durationOb = disTimeOb.getJSONObject("duration");
                 List path = new ArrayList<>();
                 for(int j=0;j<legArray.length();j++){
                     stepArray = ( (JSONObject)legArray.get(j)).getJSONArray("steps");
@@ -55,16 +54,6 @@ public class DirectionsJSONParser {
         String s = "";
         try {
             s = distanceOb.getString("value");
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return s;
-    }
-
-    public String getDurationSeconds(){
-        String s = "";
-        try {
-            s = durationOb.getString("value");
         } catch (JSONException e) {
             e.printStackTrace();
         }

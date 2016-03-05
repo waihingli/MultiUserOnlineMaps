@@ -146,11 +146,21 @@ public class MapsActivity extends FragmentActivity {
         return s;
     }
 
-    public void distanceParser(String dist, String dura){
+    public void distanceParser(String dist){
         distance = Double.parseDouble(dist);
-        duration = Double.parseDouble(dura);
         tv_Distance.setText(distanceUnitConverter(distance));
-        tv_Duration.setText(durationUnitConverter(duration));
+        tv_Duration.setText(durationUnitConverter(estimatedDuration()));
+    }
+
+    public double estimatedDuration(){
+        double speed = velocity.getFinalVelocity();
+        double eDuration = 0;
+        if(speed < 1){
+            eDuration = distance/1.4;
+        }else{
+            eDuration = distance / speed;
+        }
+        return eDuration;
     }
 
     private String getDirectionsUrl(LatLng origin, LatLng dest) {
@@ -201,14 +211,13 @@ public class MapsActivity extends FragmentActivity {
                     setUpMap();
                 }
                 currentLocation = (Location) bundle.get("location");
-                velocity.updateGPSVelocity(currentLocation.getSpeed());
+                velocity.onGPSUpdate(currentLocation);
                 tv_GPS.setText(df.format(velocity.getGPSVelocity()*100) + " cm/s");
-
             }
             if(intent.getAction().equals(Params.SENSOR_SERVICE)){
                 double acceleration = bundle.getDouble("acceleration");
                 long time = bundle.getLong("time");
-                velocity.setSensorAcceleration(acceleration, time);
+                velocity.onSensorUpdate(acceleration, time);
                 tv_Sensor.setText(df.format(velocity.getAccelerometerVelocity()*100) + " cm/s");
             }
         }
@@ -235,7 +244,7 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private class ParserTask extends AsyncTask<String, Integer, List<List<HashMap<String, String>>>> {
-        private String dist, dura;
+        private String dist;
         @Override
         protected List<List<HashMap<String, String>>> doInBackground(String... jsonData) {
             JSONObject jsonObject;
@@ -245,7 +254,6 @@ public class MapsActivity extends FragmentActivity {
                 DirectionsJSONParser jsonParser = new DirectionsJSONParser();
                 routes = jsonParser.parse(jsonObject);
                 dist = jsonParser.getDistanceMeters();
-                dura = jsonParser.getDurationSeconds();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -272,7 +280,7 @@ public class MapsActivity extends FragmentActivity {
                 lineOptions.width(12);
                 lineOptions.color(Color.GRAY);
             }
-            distanceParser(dist, dura);
+            distanceParser(dist);
             mMap.addPolyline(lineOptions);
         }
     }

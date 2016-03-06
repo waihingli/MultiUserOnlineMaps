@@ -5,13 +5,13 @@ import android.content.SharedPreferences;
 import android.location.Location;
 
 import com.firebase.client.AuthData;
-import com.firebase.client.ChildEventListener;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 
@@ -19,14 +19,25 @@ import java.util.Locale;
  * Created by WaiHing on 5/3/2016.
  */
 public class DatabaseHelper {
+    public static DatabaseHelper instance = null;
     public static final String PATH = "https://multiuseronlinemap.firebaseio.com/";
     private Firebase myFireBaseRef = new Firebase(PATH);
     private SharedPreferences settings;
     private String username;
+    ArrayList<String> sharelist = new ArrayList<>();
+    boolean userExist, haveShareList;
+
+    static public DatabaseHelper getInstance(Context context){
+        if(instance == null){
+            instance = new DatabaseHelper(context);
+        }
+        return instance;
+    }
 
     protected DatabaseHelper(Context context){
         settings = context.getSharedPreferences("user_auth", Context.MODE_PRIVATE);
         username = settings.getString("username", "");
+        dbOnload();
     }
 
     public void authentication(){
@@ -56,7 +67,11 @@ public class DatabaseHelper {
 //        });
     }
 
-    public void updateDb(Location l, double v){
+    public void dbOnload(){
+        getDbShareList();
+    }
+
+    public void updatePosition(Location l, double v){
         Firebase positionRef = myFireBaseRef.child("User").child(username).child("Position");
         positionRef.child("Latitude").setValue(l.getLatitude());
         positionRef.child("Longitude").setValue(l.getLongitude());
@@ -64,28 +79,24 @@ public class DatabaseHelper {
         positionRef.child("TimeStamp").setValue(getTime());
     }
 
-    public void onDbDataChange(){
-        String childName = "position_" + username ;
-        Firebase userRef = myFireBaseRef.child(childName);
-        myFireBaseRef.addChildEventListener(new ChildEventListener() {
+    public void getDbShareList(){
+        final Firebase shareRef = myFireBaseRef.child("User").child(username).child("ShareList");
+        shareRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.hasChildren()) {
+                    for (DataSnapshot child : dataSnapshot.getChildren()) {
+                        if(child.getValue() != null){
+                            String name = child.getValue().toString();
+                            sharelist.add(name);
+                        }
+                        if(sharelist.size() == dataSnapshot.getChildrenCount()){
+                            break;
+                        }
+                    }
+                } else{
+                    haveShareList = false;
+                }
             }
 
             @Override
@@ -95,7 +106,40 @@ public class DatabaseHelper {
         });
     }
 
-    public String getTime(){
+    public ArrayList<String> getShareList(){
+        return sharelist;
+    }
+
+    public boolean haveShareList(){
+        return haveShareList;
+    }
+
+    public boolean checkUserExist(final String name){
+        userExist = false;
+        final Firebase usetRef = myFireBaseRef.child("User");
+        usetRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.hasChild(name)){
+                   userExist = true;
+                }
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+        return userExist;
+    }
+
+    public void updateShareList(ArrayList<String> list){
+        final Firebase shareRef = myFireBaseRef.child("User").child(username).child("ShareList");
+        sharelist = list;
+        shareRef.setValue(list);
+    }
+
+    private String getTime(){
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
         Date date = new Date();
         return dateFormat.format(date);

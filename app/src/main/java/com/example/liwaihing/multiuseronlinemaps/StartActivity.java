@@ -33,6 +33,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
         Firebase.setAndroidContext(this);
+        DatabaseHelper dbHelper = DatabaseHelper.getInstance(this);
         settings = getSharedPreferences("user_auth", MODE_PRIVATE);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if(!isMyServiceRunning(LocationService.class)) {

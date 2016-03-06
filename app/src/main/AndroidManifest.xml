@@ -51,6 +51,10 @@
             android:exported="true" >
         </service>
 
+        <activity
+            android:name=".ShareActivity"
+            android:label="@string/title_activity_share" >
+        </activity>
     </application>
 
 </manifest>

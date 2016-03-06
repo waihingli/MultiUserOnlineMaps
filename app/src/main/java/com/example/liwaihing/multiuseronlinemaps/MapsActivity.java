@@ -10,7 +10,10 @@ import android.os.AsyncTask;
 import android.support.multidex.MultiDex;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v7.widget.Toolbar;
+import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -40,6 +43,7 @@ public class MapsActivity extends FragmentActivity {
     private Velocity velocity;
     private DatabaseHelper dbHelper;
     private MyBroadcastReceiver myBroadcastReceiver;
+    private ImageButton btn_menu, btn_share;
     private TextView tv_GPS, tv_Sensor, tv_Distance, tv_Duration;
     private double distance = 0;
     private static final LatLng destination = new LatLng(22.441052, 114.032718);
@@ -55,14 +59,32 @@ public class MapsActivity extends FragmentActivity {
         intentFilter.addAction(Params.SENSOR_SERVICE);
         this.registerReceiver(myBroadcastReceiver, intentFilter);
         velocity = Velocity.getInstance();
-        dbHelper = new DatabaseHelper(this);
+        dbHelper = DatabaseHelper.getInstance(this);
         setUpMapIfNeeded();
+        btn_menu = (ImageButton) findViewById(R.id.btn_menu);
+        btn_share = (ImageButton) findViewById(R.id.btn_share);
+        btn_menu.setOnClickListener(onClickMenu);
+        btn_share.setOnClickListener(onClickShare);
         tv_GPS = (TextView) findViewById(R.id.tv_GPSV);
         tv_Sensor = (TextView) findViewById(R.id.tv_SensorV);
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
         markerPoints = new ArrayList<>();
     }
+
+    private ImageButton.OnClickListener onClickMenu = new ImageButton.OnClickListener(){
+        @Override
+        public void onClick(View v) {
+
+        }
+    };
+
+    private ImageButton.OnClickListener onClickShare = new ImageButton.OnClickListener(){
+        @Override
+        public void onClick(View v) {
+            startActivity(ShareActivity.class);
+        }
+    };
 
     @Override
     protected void onResume() {
@@ -166,6 +188,11 @@ public class MapsActivity extends FragmentActivity {
         return eDuration;
     }
 
+    private void startActivity(Class c){
+        Intent i = new Intent(this, c);
+        startActivity(i);
+    }
+
     private String getDirectionsUrl(LatLng origin, LatLng dest) {
         String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
         String str_dest = "destination=" + dest.latitude + "," + dest.longitude;
@@ -224,7 +251,7 @@ public class MapsActivity extends FragmentActivity {
                 tv_Sensor.setText(df.format(velocity.getAccelerometerVelocity()*100) + " cm/s");
             }
             if(currentLocation!=null) {
-                dbHelper.updateDb(currentLocation, velocity.getFinalVelocity());
+                dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity());
             }
         }
     }

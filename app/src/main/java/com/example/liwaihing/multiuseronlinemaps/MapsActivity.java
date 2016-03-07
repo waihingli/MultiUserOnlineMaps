@@ -10,18 +10,24 @@ import android.os.AsyncTask;
 import android.support.multidex.MultiDex;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-import android.support.v7.widget.Toolbar;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.firebase.client.ChildEventListener;
+import com.firebase.client.DataSnapshot;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+import com.firebase.client.ValueEventListener;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import org.json.JSONObject;
@@ -37,7 +43,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class MapsActivity extends FragmentActivity {
+public class MapsActivity extends FragmentActivity{
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private Location currentLocation = null;
     private Velocity velocity;
@@ -48,6 +54,10 @@ public class MapsActivity extends FragmentActivity {
     private double distance = 0;
     private static final LatLng destination = new LatLng(22.441052, 114.032718);
     private ArrayList<LatLng> markerPoints;
+    private ArrayList<String> sharingUser;
+    private ArrayList<UserPosition> userList;
+    private ArrayList<ArrayList> markerList;
+    private Polyline polyline = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,8 +69,9 @@ public class MapsActivity extends FragmentActivity {
         intentFilter.addAction(Params.SENSOR_SERVICE);
         this.registerReceiver(myBroadcastReceiver, intentFilter);
         velocity = Velocity.getInstance();
-        dbHelper = DatabaseHelper.getInstance(this);
+        dbHelper = new DatabaseHelper(this);
         setUpMapIfNeeded();
+        setUpListener();
         btn_menu = (ImageButton) findViewById(R.id.btn_menu);
         btn_share = (ImageButton) findViewById(R.id.btn_share);
         btn_menu.setOnClickListener(onClickMenu);
@@ -70,7 +81,114 @@ public class MapsActivity extends FragmentActivity {
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
         markerPoints = new ArrayList<>();
+        sharingUser = new ArrayList<>();
+        userList = new ArrayList<>();
+        markerList = new ArrayList();
+        mMap.setOnMarkerClickListener(onClickMarker);
     }
+
+    private void setUpListener(){
+        Firebase sharingRef = dbHelper.getUserSharingPath();
+        sharingRef.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                String user = dataSnapshot.getValue(String.class);
+                sharingUser.add(user);
+                double lat = 0, lon = 0, v = 0;
+                UserPosition userPos = new UserPosition(user, lat, lon, v);
+                userList.add(userPos);
+                MarkerOptions options = new MarkerOptions();
+                options.icon(BitmapDescriptorFactory
+                        .defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                ArrayList<Marker> markers = new ArrayList<>();
+                markerList.add(markers);
+                Firebase updatePosRef = dbHelper.getUserPositionPath(userPos.getUsername());
+                updatePosRef.addValueEventListener(onSharingPosUpdateListener);
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+
+    }
+
+    private ValueEventListener onSharingPosUpdateListener = new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            for(int i=0; i<userList.size(); i++){
+                UserPosition u = userList.get(i);
+                if(markerList.get(i).size()>0){
+                    Marker old = (Marker)markerList.get(i).get(0);
+                    old.remove();
+                    markerList.get(i).clear();
+                }
+                if(u.getUsername().equals(dataSnapshot.child("User").getValue())){
+                    u.setLatitude((double) dataSnapshot.child("Latitude").getValue());
+                    u.setLongitude((double) dataSnapshot.child("Longitude").getValue());
+                    u.setVelocity((double) dataSnapshot.child("Velocity").getValue());
+                    MarkerOptions options = new MarkerOptions();
+                    options.icon(BitmapDescriptorFactory
+                            .defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                    options.position(u.getLatLng());
+                    options.title(u.getUsername());
+                    Marker m = mMap.addMarker(options);
+                    m.setPosition(u.getLatLng());
+                    markerList.get(i).add(m);
+                }
+            }
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
+    };
+
+    private GoogleMap.OnMarkerClickListener onClickMarker = new GoogleMap.OnMarkerClickListener() {
+        @Override
+        public boolean onMarkerClick(Marker marker) {
+            if(polyline!=null){
+                polyline.remove();
+            }
+            String name = marker.getTitle();
+            UserPosition userPos = null; //new UserPosition(name, 0, 0, 0);
+            for (UserPosition u : userList){
+                if (u.getUserPosition(name)!=null){
+                    userPos = u;
+                }
+            }
+            markerPoints.add(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
+            markerPoints.add(userPos.getLatLng());
+
+            if (markerPoints.size() >= 2) {
+                LatLng origin = markerPoints.get(0);
+                LatLng dest = markerPoints.get(1);
+                String url = getDirectionsUrl(origin, dest);
+                DownloadTask downloadTask = new DownloadTask();
+                downloadTask.execute(url);
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(dest, 16));
+                markerPoints.clear();
+            }
+            return true;
+        }
+    };
 
     private ImageButton.OnClickListener onClickMenu = new ImageButton.OnClickListener(){
         @Override
@@ -102,6 +220,10 @@ public class MapsActivity extends FragmentActivity {
 
     @Override
     protected void onPause() {
+        for(UserPosition u : userList){
+            Firebase ref = dbHelper.getUserPositionPath(u.getUsername());
+            ref.removeEventListener(onSharingPosUpdateListener);
+        }
         super.onPause();
     }
 
@@ -314,7 +436,7 @@ public class MapsActivity extends FragmentActivity {
                 lineOptions.color(Color.GRAY);
             }
             distanceParser(dist);
-            mMap.addPolyline(lineOptions);
+            polyline = mMap.addPolyline(lineOptions);
         }
     }
 

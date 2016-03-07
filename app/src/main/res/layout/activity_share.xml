@@ -28,23 +28,10 @@
             android:nestedScrollingEnabled="false" />
     </RelativeLayout>
 
-    <RelativeLayout
+    <ListView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <ListView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:id="@+id/lv_sharelist"
-            android:longClickable="true"/>
-
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/img_loading"
-            android:src="@drawable/loading_icon"
-            android:visibility="invisible"
-            android:layout_centerInParent="true" />
-    </RelativeLayout>
+        android:layout_height="match_parent"
+        android:id="@+id/lv_sharelist"
+        android:longClickable="true"/>
 
 </LinearLayout>

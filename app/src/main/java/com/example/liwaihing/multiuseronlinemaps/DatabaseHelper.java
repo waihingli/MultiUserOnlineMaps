@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.location.Location;
 
-import com.firebase.client.AuthData;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
@@ -22,18 +21,30 @@ public class DatabaseHelper {
     public static final String PATH = "https://multiuseronlinemap.firebaseio.com/";
     private Firebase myFireBaseRef = new Firebase(PATH);
     private SharedPreferences settings;
-    private String username;
-    ArrayList<String> shareList;
+    private String displayname, googleID, profilePic;
 
     protected DatabaseHelper(Context context){
         settings = context.getSharedPreferences("user_auth", Context.MODE_PRIVATE);
-        username = settings.getString("username", "");
-        shareList = new ArrayList<>();
+        displayname = settings.getString("name", "");
+        googleID = settings.getString("googleID", "");
+        profilePic = settings.getString("profilePic", "");
+        updateUserProfile();
+    }
+
+    public String getGoogleID(){
+        return googleID;
+    }
+
+    private void updateUserProfile(){
+        Firebase profileRef = getUserProfilePath(googleID);
+        profileRef.child("Name").setValue(displayname);
+        profileRef.child("ID").setValue(googleID);
+        profileRef.child("Picture").setValue(profilePic);
     }
 
     public void updatePosition(Location l, double v){
-        Firebase positionRef = getUserPositionPath(username);
-        positionRef.child("User").setValue(username);
+        Firebase positionRef = getUserPositionPath(googleID);
+        positionRef.child("User").setValue(googleID);
         positionRef.child("Latitude").setValue(l.getLatitude());
         positionRef.child("Longitude").setValue(l.getLongitude());
         positionRef.child("Velocity").setValue(v);
@@ -42,13 +53,12 @@ public class DatabaseHelper {
 
     public void updateShareList(ArrayList<String> list){
         final Firebase shareRef = getUserShareListPath();
-        shareList = list;
         shareRef.setValue(list);
     }
 
     public void addSharingUser(final String user){
         final ArrayList<String> list = new ArrayList<>();
-        final Firebase sharingRef = getUserSharingPath();
+        final Firebase sharingRef = getUserSharingPath(googleID);
         sharingRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -70,12 +80,12 @@ public class DatabaseHelper {
     }
 
     public void updateSharing(final ArrayList<String> list){
-        final Firebase sharingRef = getUserSharingPath();
+        final Firebase sharingRef = getUserSharingPath(googleID);
         sharingRef.setValue(list);
     }
 
     public void stopSharing(){
-        final Firebase sharingRef = getUserSharingPath();
+        final Firebase sharingRef = getUserSharingPath(googleID);
         sharingRef.removeValue();
     }
 
@@ -83,16 +93,20 @@ public class DatabaseHelper {
         return myFireBaseRef.child("User");
     }
 
+    public Firebase getUserProfilePath(String user){
+        return myFireBaseRef.child("User").child(user).child("Profile");
+    }
+
     public Firebase getUserShareListPath(){
-        return myFireBaseRef.child("User").child(username).child("ShareList");
+        return myFireBaseRef.child("User").child(googleID).child("ShareList");
     }
 
     public Firebase getUserPositionPath(String user){
         return myFireBaseRef.child("User").child(user).child("Position");
     }
 
-    public Firebase getUserSharingPath(){
-        return myFireBaseRef.child("User").child(username).child("Sharing");
+    public Firebase getUserSharingPath(String user){
+        return myFireBaseRef.child("User").child(user).child("Sharing");
     }
 
     private String getTime(){

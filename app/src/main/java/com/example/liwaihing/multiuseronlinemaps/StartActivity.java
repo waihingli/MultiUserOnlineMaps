@@ -14,6 +14,7 @@ import android.graphics.BitmapFactory;
 import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -30,14 +31,14 @@ import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.plus.Plus;
 import com.google.android.gms.plus.model.people.Person;
 import com.google.android.gms.common.api.Status;
+
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.List;
-
 
 public class StartActivity extends Activity implements GoogleApiClient.OnConnectionFailedListener, View.OnClickListener, GoogleApiClient.ConnectionCallbacks {
     private LocationManager locationManager;
     private SharedPreferences settings;
-    private String username = "waihingli3";
     private GoogleApiClient googleApiClient;
     private GoogleApiAvailability googleApiAvailability;
     private SignInButton btn_SignIn;
@@ -91,12 +92,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
     }
 
     private void setUpGPlusService(){
-        googleApiClient =  new GoogleApiClient.Builder(this)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(Plus.API, Plus.PlusOptions.builder().build())
-                .addScope(Plus.SCOPE_PLUS_LOGIN)
-                .build();
+        setUpGoogleApiClient();
         btn_SignIn = (SignInButton) findViewById(R.id.btn_signIn);
         btn_SignIn.setSize(SignInButton.SIZE_STANDARD);
         btn_SignIn.setScopes(new Scope[]{Plus.SCOPE_PLUS_LOGIN});
@@ -105,6 +101,15 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         findViewById(R.id.btn_proceed).setOnClickListener(this);
         progress_dialog = new ProgressDialog(this);
         progress_dialog.setMessage("Signing in....");
+    }
+
+    private void setUpGoogleApiClient(){
+        googleApiClient =  new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(Plus.API, Plus.PlusOptions.builder().build())
+                .addScope(Plus.SCOPE_PLUS_LOGIN)
+                .build();
     }
 
     private void gPlusSignIn() {
@@ -132,9 +137,16 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
     private void gPlusSignOut() {
         if (googleApiClient.isConnected()) {
             Plus.AccountApi.clearDefaultAccount(googleApiClient);
-            googleApiClient.disconnect();
-            googleApiClient.connect();
-            updateUI(false);
+            Plus.AccountApi.revokeAccessAndDisconnect(googleApiClient)
+                .setResultCallback(new ResultCallback<Status>() {
+                    @Override
+                    public void onResult(Status arg0) {
+                        Log.d("MainActivity", "User access revoked!");
+                        setUpGoogleApiClient();
+                        googleApiClient.connect();
+                        updateUI(false);
+                    }
+                });
         }
     }
 
@@ -170,17 +182,18 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         setProfilePic(personPhotoUrl);
         String[] googleID = email.split("@");
         SharedPreferences.Editor editor = settings.edit();
-        editor.putString("username", googleID[0]);
+        editor.putString("name", personName);
+        editor.putString("googleID", googleID[0]);
         editor.commit();
         progress_dialog.dismiss();
     }
 
-    private void setProfilePic(String profile_pic){
-        profile_pic = profile_pic.substring(0,
-                profile_pic.length() - 2)
+    private void setProfilePic(String profilePic){
+        profilePic = profilePic.substring(0,
+                profilePic.length() - 2)
                 + PROFILE_PIC_SIZE;
-        ImageView user_picture = (ImageView)findViewById(R.id.img_proPic);
-        new LoadProfilePic(user_picture).execute(profile_pic);
+        ImageView userPic = (ImageView)findViewById(R.id.img_proPic);
+        new LoadProfilePic(userPic).execute(profilePic);
     }
 
     @Override
@@ -287,11 +300,26 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         }
     }
 
-    private class LoadProfilePic extends AsyncTask<String, Void, Bitmap> {
-        ImageView bitmap_img;
+    @Override
+    protected void onActivityResult(int mRequestCode, int mResponseCode, Intent intent) {
+        if (mRequestCode == SIGN_IN_CODE) {
+            requestCode = mRequestCode;
+            if (mResponseCode != RESULT_OK) {
+                isSignInBtnClicked = false;
+                progress_dialog.dismiss();
+            }
+            isIntentInprogress = false;
+            if (!googleApiClient.isConnecting()) {
+                googleApiClient.connect();
+            }
+        }
+    }
 
-        public LoadProfilePic(ImageView bitmap_img) {
-            this.bitmap_img = bitmap_img;
+    private class LoadProfilePic extends AsyncTask<String, Void, Bitmap> {
+        ImageView img_bitmap;
+
+        public LoadProfilePic(ImageView img) {
+            img_bitmap = img;
         }
 
         protected Bitmap doInBackground(String... urls) {
@@ -306,8 +334,15 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
             return new_icon;
         }
 
-        protected void onPostExecute(Bitmap result_img) {
-            bitmap_img.setImageBitmap(result_img);
+        protected void onPostExecute(Bitmap resultImg) {
+            img_bitmap.setImageBitmap(resultImg);
+            ByteArrayOutputStream baos=new  ByteArrayOutputStream();
+            resultImg.compress(Bitmap.CompressFormat.PNG,100, baos);
+            byte[] b=baos.toByteArray();
+            String temp=Base64.encodeToString(b, Base64.DEFAULT);
+            SharedPreferences.Editor editor = settings.edit();
+            editor.putString("profilePic", temp);
+            editor.commit();
         }
     }
 

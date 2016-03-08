@@ -10,7 +10,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -29,7 +28,7 @@ public class ShareActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private ArrayList<String> shareList;
     private ListView lv_shareList;
-    private ArrayAdapter listAdapter;
+    private UserListAdapter listAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,7 +53,7 @@ public class ShareActivity extends AppCompatActivity {
         shareList = new ArrayList<>();
         setUpListener();
         lv_shareList = (ListView) findViewById(R.id.lv_sharelist);
-        listAdapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, shareList);
+        listAdapter = new UserListAdapter(this, CommonUserList.getUserProfileList());
         lv_shareList.setAdapter(listAdapter);
         this.registerForContextMenu(lv_shareList);
     }
@@ -64,9 +63,32 @@ public class ShareActivity extends AppCompatActivity {
         shareListRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                String user = dataSnapshot.getValue(String.class);
+                final String user = dataSnapshot.getValue(String.class);
                 shareList.add(user);
-                listAdapter.notifyDataSetChanged();
+                boolean userExist = false;
+                for (UserProfile u : CommonUserList.getUserProfileList()) {
+                    if (u.getUserProfile(user) != null) {
+                        userExist = true;
+                    }
+                }
+                if(!userExist){
+                    Firebase ref = dbHelper.getUserProfilePath(user);
+                    ref.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot d) {
+                            UserProfile userPro = new UserProfile(user);
+                            userPro.setDisplayName(d.child("Name").getValue(String.class));
+                            userPro.setProfilePic(d.child("Picture").getValue(String.class));
+                            CommonUserList.addUserProfileList(userPro);
+                            listAdapter.notifyDataSetChanged();
+                        }
+
+                        @Override
+                        public void onCancelled(FirebaseError firebaseError) {
+
+                        }
+                    });
+                }
             }
 
             @Override
@@ -89,6 +111,8 @@ public class ShareActivity extends AppCompatActivity {
 
             }
         });
+
+
     }
 
     @Override
@@ -96,6 +120,20 @@ public class ShareActivity extends AppCompatActivity {
         super.onCreateContextMenu(menu, v, menuInfo);
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_share, menu);
+        MenuItem share = menu.findItem(R.id.action_share);
+        MenuItem delete = menu.findItem(R.id.action_delete);
+        MenuItem stopShare = menu.findItem(R.id.action_stopShare);
+        for(UserProfile u : CommonUserList.getUserProfileList()){
+            if(u.getIsSharing()){
+                share.setVisible(false);
+                delete.setVisible(false);
+                stopShare.setVisible(true);
+            }else{
+                share.setVisible(true);
+                delete.setVisible(true);
+                stopShare.setVisible(false);
+            }
+        }
     }
 
     @Override
@@ -105,13 +143,35 @@ public class ShareActivity extends AppCompatActivity {
         String user = shareList.get(position);
         switch (item.getItemId()){
             case R.id.action_share:
+                for(UserProfile u : CommonUserList.getUserProfileList()){
+                    if(u.getUserProfile(user)!=null){
+                        u.setIsSharing(true);
+                    }
+                }
                 dbHelper.addSharingUser(user);
                 finish();
                 break;
             case R.id.action_delete:
                 shareList.remove(position);
+                UserProfile userPro = null;
+                for(UserProfile u : CommonUserList.getUserProfileList()){
+                    if(u.getUserProfile(user)!=null){
+                        userPro = u;
+                    }
+                }
+//                CommonUserList.removeUserProfileList(userPro);
                 dbHelper.updateShareList(shareList);
                 listAdapter.notifyDataSetChanged();
+                break;
+            case R.id.action_stopShare:
+//                CommonUserList.removeUserSharingList(user);
+//                for(UserProfile u : CommonUserList.getUserProfileList()){
+//                    if(u.getUserProfile(user)!=null){
+//                        u.setIsSharing(false);
+//                    }
+//                }
+//                dbHelper.updateSharing(CommonUserList.getUserSharingList());
+//                listAdapter.notifyDataSetChanged();
                 break;
         }
         return super.onContextItemSelected(item);
@@ -136,9 +196,19 @@ public class ShareActivity extends AppCompatActivity {
                         @Override
                         public void onDataChange(DataSnapshot dataSnapshot) {
                             if (dataSnapshot.hasChild(googleid)) {
-                                shareList.add(googleid);
-                                dbHelper.updateShareList(shareList);
-                                dialog.dismiss();
+                                boolean exist = false;
+                                for(int i = 0; i<shareList.size(); i++){
+                                    if(shareList.get(i).equals(googleid)){
+                                        exist = true;
+                                    }
+                                }
+                                if(!exist){
+                                    shareList.add(googleid);
+                                    dbHelper.updateShareList(shareList);
+                                    dialog.dismiss();
+                                }else{
+                                    tv_msg.setText("Already added user.");
+                                }
                             }else{
                                 tv_msg.setText("User does not exist.");
                             }

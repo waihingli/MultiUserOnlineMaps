@@ -4,7 +4,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.support.multidex.MultiDex;
@@ -55,10 +60,8 @@ public class MapsActivity extends FragmentActivity{
     private TextView tv_GPS, tv_Sensor, tv_Distance, tv_Duration;
     private LinearLayout layout_pos;
     private double distance = 0;
-    private static final LatLng destination = new LatLng(22.441052, 114.032718);
     private ArrayList<LatLng> markerPoints;
-    private ArrayList<String> sharingUser;
-    private ArrayList<UserPosition> userList;
+    private ArrayList<UserPosition> userPositionList;
     private ArrayList<ArrayList> markerList;
     private Polyline polyline = null;
 
@@ -73,6 +76,7 @@ public class MapsActivity extends FragmentActivity{
         this.registerReceiver(myBroadcastReceiver, intentFilter);
         velocity = Velocity.getInstance();
         dbHelper = new DatabaseHelper(this);
+        dbHelper.stopSharing();
         setUpMapIfNeeded();
         setUpListener();
         btn_menu = (ImageButton) findViewById(R.id.btn_menu);
@@ -92,32 +96,28 @@ public class MapsActivity extends FragmentActivity{
             }
         });
         markerPoints = new ArrayList<>();
-        sharingUser = new ArrayList<>();
-        userList = new ArrayList<>();
+        userPositionList = new ArrayList<>();
         markerList = new ArrayList();
         mMap.setOnMarkerClickListener(onClickMarker);
     }
 
     private void setUpListener(){
-        Firebase sharingRef = dbHelper.getUserSharingPath();
+        Firebase sharingRef = dbHelper.getUserSharingPath(dbHelper.getGoogleID());
         sharingRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 String user = dataSnapshot.getValue(String.class);
                 boolean isUserSharing = false;
-                for(int i=0;i<sharingUser.size();i++){
-                    if(user.equals(sharingUser.get(i))){
+                for(int i=0;i<CommonUserList.getUserSharingList().size();i++){
+                    if(user.equals(CommonUserList.getUserSharingList().get(i))){
                         isUserSharing = true;
                     }
                 }
                 if(!isUserSharing){
-                    sharingUser.add(user);
+                    CommonUserList.addUseSharingList(user);
                     double lat = 0, lon = 0, v = 0;
                     UserPosition userPos = new UserPosition(user, lat, lon, v);
-                    userList.add(userPos);
-                    MarkerOptions options = new MarkerOptions();
-                    options.icon(BitmapDescriptorFactory
-                            .defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                    userPositionList.add(userPos);
                     ArrayList<Marker> markers = new ArrayList<>();
                     markerList.add(markers);
                     Firebase updatePosRef = dbHelper.getUserPositionPath(userPos.getUsername());
@@ -132,17 +132,20 @@ public class MapsActivity extends FragmentActivity{
 
             @Override
             public void onChildRemoved(DataSnapshot dataSnapshot) {
-                UserPosition userPos = null;
                 String name = dataSnapshot.getValue(String.class);
-                for (UserPosition u:userList){
-                    if (u.getUserPosition(name)!=null){
-                        userPos = u;
+                for(int i=0; i< userPositionList.size(); i++){
+                    UserPosition u = userPositionList.get(i);
+                    if(u.getUsername().equals(dataSnapshot.child("User").getValue())) {
+                        if (markerList.get(i).size() > 0) {
+                            Marker m = (Marker) markerList.get(i).get(0);
+                            m.remove();
+                            markerList.remove(i);
+                        }
+                        userPositionList.remove(u);
+                        Firebase updatePosRef = dbHelper.getUserPositionPath(name);
+                        updatePosRef.removeEventListener(onSharingPosUpdateListener);
                     }
                 }
-                userList.remove(userPos);
-                Firebase updatePosRef = dbHelper.getUserPositionPath(name);
-                updatePosRef.removeEventListener(onSharingPosUpdateListener);
-
             }
 
             @Override
@@ -161,9 +164,14 @@ public class MapsActivity extends FragmentActivity{
     private ValueEventListener onSharingPosUpdateListener = new ValueEventListener() {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
-            for(int i=0; i<userList.size(); i++){
-                UserPosition u = userList.get(i);
+            for(int i=0; i< userPositionList.size(); i++){
+                UserPosition u = userPositionList.get(i);
                 if(u.getUsername().equals(dataSnapshot.child("User").getValue())){
+                    UserProfile uPro = null;
+                    for (UserProfile p : CommonUserList.getUserProfileList()){
+                        if(p.getUserProfile(u.getUsername())!=null)
+                            uPro = p;
+                    }
                     if(markerList.get(i).size()>0){
                         Marker old = (Marker)markerList.get(i).get(0);
                         old.remove();
@@ -172,11 +180,22 @@ public class MapsActivity extends FragmentActivity{
                     u.setLatitude((double) dataSnapshot.child("Latitude").getValue());
                     u.setLongitude((double) dataSnapshot.child("Longitude").getValue());
                     u.setVelocity((double) dataSnapshot.child("Velocity").getValue());
+
+                    Bitmap proPic = uPro.getProfilePic();
+                    Bitmap bmp = Bitmap.createScaledBitmap(proPic, 100, 100, false);
+                    Canvas canvas = new Canvas(bmp);
+                    Paint paint = new Paint();
+                    paint.setColor(Color.BLACK);
+                    paint.setStyle(Paint.Style.STROKE);
+                    paint.setStrokeWidth(10);
+                    canvas.drawBitmap(bmp, 0, 0, paint);
+                    canvas.drawRect(0, 0, 100, 100, paint);
                     MarkerOptions options = new MarkerOptions();
-                    options.icon(BitmapDescriptorFactory
-                            .defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                    options.icon(BitmapDescriptorFactory.fromBitmap(bmp))
+                            .anchor(0.5f, 1);
                     options.position(u.getLatLng());
                     options.title(u.getUsername());
+
                     Marker m = mMap.addMarker(options);
                     m.setPosition(u.getLatLng());
                     markerList.get(i).add(m);
@@ -192,14 +211,14 @@ public class MapsActivity extends FragmentActivity{
 
     private GoogleMap.OnMarkerClickListener onClickMarker = new GoogleMap.OnMarkerClickListener() {
         @Override
-        public boolean onMarkerClick(Marker marker) {
+        public boolean onMarkerClick(final Marker marker) {
             layout_pos.setVisibility(View.GONE);
             if(polyline!=null){
                 polyline.remove();
             }
             final String name = marker.getTitle();
             UserPosition userPos = null;
-            for (UserPosition u : userList){
+            for (UserPosition u : userPositionList){
                 if (u.getUserPosition(name)!=null){
                     userPos = u;
                 }
@@ -210,8 +229,25 @@ public class MapsActivity extends FragmentActivity{
             btn_stopShare.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    sharingUser.remove(name);
-                    dbHelper.updateSharing(sharingUser);
+                    for(int i=0; i< userPositionList.size(); i++) {
+                        UserPosition u = userPositionList.get(i);
+                        if(u.getUsername().equals(name)){
+                            markerList.remove(i);
+                            userPositionList.remove(i);
+                        }
+                    }
+                    CommonUserList.removeUserSharingList(name);
+                    for(UserProfile u : CommonUserList.getUserProfileList()){
+                        if(u.getUserProfile(name)!=null){
+                            u.setIsSharing(false);
+                        }
+                    }
+                    dbHelper.updateSharing(CommonUserList.getUserSharingList());
+                    marker.remove();
+                    layout_pos.setVisibility(View.GONE);
+                    if(polyline!=null){
+                        polyline.remove();
+                    }
                 }
             });
 
@@ -264,19 +300,11 @@ public class MapsActivity extends FragmentActivity{
 
     @Override
     protected void onStop() {
-        for(UserPosition u :userList){
-            Firebase updatePosRef = dbHelper.getUserPositionPath(u.getUsername());
-            updatePosRef.removeEventListener(onSharingPosUpdateListener);
-        }
         super.onStop();
     }
 
     @Override
     protected void onPause() {
-        for(UserPosition u : userList){
-            Firebase ref = dbHelper.getUserPositionPath(u.getUsername());
-            ref.removeEventListener(onSharingPosUpdateListener);
-        }
         super.onPause();
     }
 

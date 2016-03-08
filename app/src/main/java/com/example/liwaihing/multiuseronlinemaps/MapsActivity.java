@@ -12,6 +12,7 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -51,6 +52,7 @@ public class MapsActivity extends FragmentActivity{
     private MyBroadcastReceiver myBroadcastReceiver;
     private ImageButton btn_menu, btn_share;
     private TextView tv_GPS, tv_Sensor, tv_Distance, tv_Duration;
+    private LinearLayout layout_pos;
     private double distance = 0;
     private static final LatLng destination = new LatLng(22.441052, 114.032718);
     private ArrayList<LatLng> markerPoints;
@@ -80,6 +82,14 @@ public class MapsActivity extends FragmentActivity{
         tv_Sensor = (TextView) findViewById(R.id.tv_SensorV);
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
+        layout_pos = (LinearLayout) findViewById(R.id.layout_posDetail);
+        layout_pos.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                layout_pos.setVisibility(View.GONE);
+                polyline.remove();
+            }
+        });
         markerPoints = new ArrayList<>();
         sharingUser = new ArrayList<>();
         userList = new ArrayList<>();
@@ -164,11 +174,12 @@ public class MapsActivity extends FragmentActivity{
     private GoogleMap.OnMarkerClickListener onClickMarker = new GoogleMap.OnMarkerClickListener() {
         @Override
         public boolean onMarkerClick(Marker marker) {
+            layout_pos.setVisibility(View.GONE);
             if(polyline!=null){
                 polyline.remove();
             }
             String name = marker.getTitle();
-            UserPosition userPos = null; //new UserPosition(name, 0, 0, 0);
+            UserPosition userPos = null;
             for (UserPosition u : userList){
                 if (u.getUserPosition(name)!=null){
                     userPos = u;
@@ -186,6 +197,7 @@ public class MapsActivity extends FragmentActivity{
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(dest, 16));
                 markerPoints.clear();
             }
+            layout_pos.setVisibility(View.VISIBLE);
             return true;
         }
     };
@@ -251,25 +263,6 @@ public class MapsActivity extends FragmentActivity{
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), 16));
         }else{
             Toast.makeText(this, "Location not find", Toast.LENGTH_SHORT);
-        }
-    }
-
-    public void onNavigation(View v){
-        markerPoints.add(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
-        markerPoints.add(destination);
-        MarkerOptions options = new MarkerOptions();
-        options.position(destination);
-        options.icon(BitmapDescriptorFactory
-                .defaultMarker(BitmapDescriptorFactory.HUE_RED));
-        mMap.addMarker(options);
-
-        if (markerPoints.size() >= 2) {
-            LatLng origin = markerPoints.get(0);
-            LatLng dest = markerPoints.get(1);
-            String url = getDirectionsUrl(origin, dest);
-            DownloadTask downloadTask = new DownloadTask();
-            downloadTask.execute(url);
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(dest, 16));
         }
     }
 

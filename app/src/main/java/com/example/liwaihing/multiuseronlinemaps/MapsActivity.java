@@ -11,6 +11,7 @@ import android.support.multidex.MultiDex;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -103,17 +104,25 @@ public class MapsActivity extends FragmentActivity{
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 String user = dataSnapshot.getValue(String.class);
-                sharingUser.add(user);
-                double lat = 0, lon = 0, v = 0;
-                UserPosition userPos = new UserPosition(user, lat, lon, v);
-                userList.add(userPos);
-                MarkerOptions options = new MarkerOptions();
-                options.icon(BitmapDescriptorFactory
-                        .defaultMarker(BitmapDescriptorFactory.HUE_RED));
-                ArrayList<Marker> markers = new ArrayList<>();
-                markerList.add(markers);
-                Firebase updatePosRef = dbHelper.getUserPositionPath(userPos.getUsername());
-                updatePosRef.addValueEventListener(onSharingPosUpdateListener);
+                boolean isUserSharing = false;
+                for(int i=0;i<sharingUser.size();i++){
+                    if(user.equals(sharingUser.get(i))){
+                        isUserSharing = true;
+                    }
+                }
+                if(!isUserSharing){
+                    sharingUser.add(user);
+                    double lat = 0, lon = 0, v = 0;
+                    UserPosition userPos = new UserPosition(user, lat, lon, v);
+                    userList.add(userPos);
+                    MarkerOptions options = new MarkerOptions();
+                    options.icon(BitmapDescriptorFactory
+                            .defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                    ArrayList<Marker> markers = new ArrayList<>();
+                    markerList.add(markers);
+                    Firebase updatePosRef = dbHelper.getUserPositionPath(userPos.getUsername());
+                    updatePosRef.addValueEventListener(onSharingPosUpdateListener);
+                }
             }
 
             @Override
@@ -123,6 +132,16 @@ public class MapsActivity extends FragmentActivity{
 
             @Override
             public void onChildRemoved(DataSnapshot dataSnapshot) {
+                UserPosition userPos = null;
+                String name = dataSnapshot.getValue(String.class);
+                for (UserPosition u:userList){
+                    if (u.getUserPosition(name)!=null){
+                        userPos = u;
+                    }
+                }
+                userList.remove(userPos);
+                Firebase updatePosRef = dbHelper.getUserPositionPath(name);
+                updatePosRef.removeEventListener(onSharingPosUpdateListener);
 
             }
 
@@ -144,12 +163,12 @@ public class MapsActivity extends FragmentActivity{
         public void onDataChange(DataSnapshot dataSnapshot) {
             for(int i=0; i<userList.size(); i++){
                 UserPosition u = userList.get(i);
-                if(markerList.get(i).size()>0){
-                    Marker old = (Marker)markerList.get(i).get(0);
-                    old.remove();
-                    markerList.get(i).clear();
-                }
                 if(u.getUsername().equals(dataSnapshot.child("User").getValue())){
+                    if(markerList.get(i).size()>0){
+                        Marker old = (Marker)markerList.get(i).get(0);
+                        old.remove();
+                        markerList.get(i).clear();
+                    }
                     u.setLatitude((double) dataSnapshot.child("Latitude").getValue());
                     u.setLongitude((double) dataSnapshot.child("Longitude").getValue());
                     u.setVelocity((double) dataSnapshot.child("Velocity").getValue());
@@ -178,7 +197,7 @@ public class MapsActivity extends FragmentActivity{
             if(polyline!=null){
                 polyline.remove();
             }
-            String name = marker.getTitle();
+            final String name = marker.getTitle();
             UserPosition userPos = null;
             for (UserPosition u : userList){
                 if (u.getUserPosition(name)!=null){
@@ -187,6 +206,14 @@ public class MapsActivity extends FragmentActivity{
             }
             markerPoints.add(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
             markerPoints.add(userPos.getLatLng());
+            Button btn_stopShare = (Button) findViewById(R.id.btn_stopShare);
+            btn_stopShare.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sharingUser.remove(name);
+                    dbHelper.updateSharing(sharingUser);
+                }
+            });
 
             if (markerPoints.size() >= 2) {
                 LatLng origin = markerPoints.get(0);
@@ -220,6 +247,10 @@ public class MapsActivity extends FragmentActivity{
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
+        layout_pos.setVisibility(View.GONE);
+        if(polyline!=null){
+            polyline.remove();
+        }
     }
 
     @Override
@@ -227,7 +258,17 @@ public class MapsActivity extends FragmentActivity{
         stopService(LocationService.class);
         stopService(SensorService.class);
         this.unregisterReceiver(myBroadcastReceiver);
+        dbHelper.stopSharing();
         super.onDestroy();
+    }
+
+    @Override
+    protected void onStop() {
+        for(UserPosition u :userList){
+            Firebase updatePosRef = dbHelper.getUserPositionPath(u.getUsername());
+            updatePosRef.removeEventListener(onSharingPosUpdateListener);
+        }
+        super.onStop();
     }
 
     @Override

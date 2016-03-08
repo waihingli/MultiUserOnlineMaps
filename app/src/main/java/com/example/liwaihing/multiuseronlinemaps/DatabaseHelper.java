@@ -31,33 +31,6 @@ public class DatabaseHelper {
         shareList = new ArrayList<>();
     }
 
-    public void authentication(){
-        myFireBaseRef.authWithOAuthToken("google", "<OAuth Token>", new Firebase.AuthResultHandler() {
-            @Override
-            public void onAuthenticated(AuthData authData) {
-                // the Google user is now authenticated with your Firebase app
-            }
-            @Override
-            public void onAuthenticationError(FirebaseError firebaseError) {
-                // there was an error
-            }
-        });
-//
-//        SimpleLogin authClient = new SimpleLogin(myRef, getApplicationContex());
-//        authClient.checkAuthStatus(new SimpleLoginAuthenticatedHandler() {
-//            @Override
-//            public void authenticated(FirebaseSimpleLoginError error, FirebaseSimpleLoginUser user) {
-//                if (error != null) {
-//                    // Oh no! There was an error performing the check
-//                } else if (user == null) {
-//                    // No user is logged in
-//                } else {
-//                    // There is a logged in user
-//                }
-//            }
-//        });
-    }
-
     public void updatePosition(Location l, double v){
         Firebase positionRef = getUserPositionPath(username);
         positionRef.child("User").setValue(username);
@@ -73,7 +46,7 @@ public class DatabaseHelper {
         shareRef.setValue(list);
     }
 
-    public void updateSharing(final String user){
+    public void addSharingUser(final String user){
         final ArrayList<String> list = new ArrayList<>();
         final Firebase sharingRef = getUserSharingPath();
         sharingRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -94,6 +67,16 @@ public class DatabaseHelper {
 
             }
         });
+    }
+
+    public void updateSharing(final ArrayList<String> list){
+        final Firebase sharingRef = getUserSharingPath();
+        sharingRef.setValue(list);
+    }
+
+    public void stopSharing(){
+        final Firebase sharingRef = getUserSharingPath();
+        sharingRef.removeValue();
     }
 
     public Firebase getUserPath(){

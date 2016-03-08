@@ -1,6 +1,7 @@
 package com.example.liwaihing.multiuseronlinemaps;
 
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 
 /**
  * Created by WaiHing on 7/3/2016.
@@ -56,5 +57,4 @@ public class UserPosition {
     public LatLng getLatLng(){
         return new LatLng(getLatitude(), getLongitude());
     }
-
 }

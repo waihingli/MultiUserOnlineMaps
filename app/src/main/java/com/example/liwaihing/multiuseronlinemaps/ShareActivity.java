@@ -1,11 +1,9 @@
 package com.example.liwaihing.multiuseronlinemaps;
 
-import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -16,18 +14,14 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.firebase.client.ChildEventListener;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
-
-import org.w3c.dom.Text;
 
 import java.util.ArrayList;
 
@@ -111,7 +105,7 @@ public class ShareActivity extends AppCompatActivity {
         String user = shareList.get(position);
         switch (item.getItemId()){
             case R.id.action_share:
-                dbHelper.updateSharing(user);
+                dbHelper.addSharingUser(user);
                 finish();
                 break;
             case R.id.action_delete:
@@ -144,7 +138,6 @@ public class ShareActivity extends AppCompatActivity {
                             if (dataSnapshot.hasChild(googleid)) {
                                 shareList.add(googleid);
                                 dbHelper.updateShareList(shareList);
-                                listAdapter.notifyDataSetChanged();
                                 dialog.dismiss();
                             }else{
                                 tv_msg.setText("User does not exist.");
@@ -184,6 +177,18 @@ public class ShareActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         listAdapter.notifyDataSetChanged();
+    }
+
+    @Override
+    protected void onDestroy() {
+        stopService(LocationService.class);
+        stopService(SensorService.class);
+        super.onDestroy();
+    }
+
+    private void stopService(Class c){
+        Intent i = new Intent(this, c);
+        stopService(i);
     }
 
     @Override

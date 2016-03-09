@@ -56,19 +56,71 @@ public class DatabaseHelper {
         shareRef.setValue(list);
     }
 
-    public void addSharingUser(final String user){
+    public void addShareList(final String user){
         final ArrayList<String> list = new ArrayList<>();
-        final Firebase sharingRef = getUserSharingPath(googleID);
+        final Firebase shareRef = getUserShareListPath();
+        shareRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                boolean userExist = false;
+                if (dataSnapshot.hasChildren()) {
+                    for (int i = 0; i < dataSnapshot.getChildrenCount(); i++) {
+                        String name = dataSnapshot.child(i + "").getValue(String.class);
+                        list.add(name);
+                        if (name.equals(user)) {
+                            userExist = true;
+                        }
+                    }
+                }
+                if (!userExist) {
+                    list.add(user);
+                    shareRef.setValue(list);
+                }
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+    }
+
+    public void addSharingUser(final String user, final String path){
+        final ArrayList<String> list = new ArrayList<>();
+        final Firebase sharingRef = getUserSharingPath(path);
         sharingRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 if (dataSnapshot.hasChildren()) {
                     for (int i = 0; i < dataSnapshot.getChildrenCount(); i++) {
-                        String name = dataSnapshot.child(i + "").getValue().toString();
+                        String name = dataSnapshot.child(i + "").getValue(String.class);
                         list.add(name);
                     }
                 }
                 list.add(user);
+                sharingRef.setValue(list);
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+    }
+
+    public void removeSharingUser(final String user, final String path){
+        final ArrayList<String> list = new ArrayList<>();
+        final Firebase sharingRef = getUserSharingPath(path);
+        sharingRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.hasChildren()) {
+                    for (int i = 0; i < dataSnapshot.getChildrenCount(); i++) {
+                        String name = dataSnapshot.child(i + "").getValue(String.class);
+                        list.add(name);
+                    }
+                }
+                list.remove(user);
                 sharingRef.setValue(list);
             }
 
@@ -89,6 +141,43 @@ public class DatabaseHelper {
         sharingRef.removeValue();
     }
 
+    public void inviteUserSharing(String user){
+        Firebase inviteRef = getUserInvitationPath(user);
+        inviteRef.child(googleID).setValue("Pending");
+
+        Firebase requestRef = getUserRequestPath(googleID);
+        requestRef.child(user).setValue("Pending");
+    }
+
+    public void removeInvitation(String user){
+        Firebase inviteRef = getUserInvitationPath(googleID);
+        inviteRef.child(user).removeValue();
+
+        Firebase requestRef = getUserRequestPath(user);
+        requestRef.child(googleID).removeValue();
+    }
+
+    public void removeAllRequest(){
+        Firebase requestRef = getUserRequestPath(googleID);
+        requestRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.hasChildren()) {
+                    for (int i = 0; i < dataSnapshot.getChildrenCount(); i++) {
+                        String name = dataSnapshot.child(i + "").getValue(String.class);
+                        Firebase inviteRef = getUserInvitationPath(name);
+                        inviteRef.child(googleID).removeValue();
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+    }
+
     public Firebase getUserPath(){
         return myFireBaseRef.child("User");
     }
@@ -107,6 +196,14 @@ public class DatabaseHelper {
 
     public Firebase getUserSharingPath(String user){
         return myFireBaseRef.child("User").child(user).child("Sharing");
+    }
+
+    public Firebase getUserInvitationPath(String user){
+        return myFireBaseRef.child("User").child(user).child("Invitation");
+    }
+
+    public Firebase getUserRequestPath(String user){
+        return myFireBaseRef.child("User").child(user).child("Request");
     }
 
     private String getTime(){

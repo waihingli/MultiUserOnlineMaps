@@ -1,6 +1,9 @@
 package com.example.liwaihing.multiuseronlinemaps;
 
+import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -14,7 +17,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.PopupMenu;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.firebase.client.ChildEventListener;
 import com.firebase.client.DataSnapshot;
@@ -26,9 +31,9 @@ import java.util.ArrayList;
 
 public class ShareActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
-    private ArrayList<String> shareList;
     private ListView lv_shareList;
     private UserListAdapter listAdapter;
+    Context c;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,28 +55,85 @@ public class ShareActivity extends AppCompatActivity {
             }
         });
         dbHelper = new DatabaseHelper(this);
-        shareList = new ArrayList<>();
         setUpListener();
         lv_shareList = (ListView) findViewById(R.id.lv_sharelist);
         listAdapter = new UserListAdapter(this, CommonUserList.getUserProfileList());
         lv_shareList.setAdapter(listAdapter);
+        c = this;
+        lv_shareList.setOnItemClickListener(onListItemClickListener);
         this.registerForContextMenu(lv_shareList);
     }
 
+    private AdapterView.OnItemClickListener onListItemClickListener = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            String user = CommonUserList.getShareList().get(position);
+            for(UserProfile u : CommonUserList.getUserProfileList()) {
+                final UserProfile uClone = u;
+                if (u.getUserProfile(user) != null) {
+                    String msg = "Invite " + u.getDisplayName() + " to share location?";
+                    AlertDialog.Builder builder = new AlertDialog.Builder(ShareActivity.this);
+                    builder.setMessage(msg)
+                            .setCancelable(false)
+                            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                public void onClick(@SuppressWarnings("unused") DialogInterface dialog, @SuppressWarnings("unused") int id) {
+                                    Firebase ref = dbHelper.getUserInvitationPath(uClone.getGoogleID());
+                                    ref.addListenerForSingleValueEvent(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(DataSnapshot dataSnapshot) {
+                                            if(dataSnapshot.hasChild(dbHelper.getGoogleID())){
+                                                if(dataSnapshot.child(dbHelper.getGoogleID()).getValue(String.class).equals("Pending")) {
+                                                    Toast.makeText(ShareActivity.this, "Invitation has been made.", Toast.LENGTH_SHORT);
+                                                }
+                                            }else if(uClone.getIsSharing()){
+                                                Toast.makeText(ShareActivity.this, "Already sharing location.", Toast.LENGTH_SHORT);
+                                            }else{
+                                                dbHelper.inviteUserSharing(uClone.getGoogleID());
+                                            }
+                                            finish();
+                                        }
+
+                                        @Override
+                                        public void onCancelled(FirebaseError firebaseError) {
+
+                                        }
+                                    });
+                                }
+                            })
+                            .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, @SuppressWarnings("unused") int id) {
+                                    dialog.cancel();
+                                }
+                            });
+                    final AlertDialog alert = builder.create();
+                    alert.show();
+                }
+            }
+        }
+    };
+
     private void setUpListener(){
-        Firebase shareListRef = dbHelper.getUserShareListPath();
+        final Firebase shareListRef = dbHelper.getUserShareListPath();
         shareListRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 final String user = dataSnapshot.getValue(String.class);
-                shareList.add(user);
+                boolean exist = false;
+                for (String name : CommonUserList.getShareList()) {
+                    if (name.equals(user)) {
+                        exist = true;
+                    }
+                }
+                if (!exist) {
+                    CommonUserList.addShareList(user);
+                }
                 boolean userExist = false;
                 for (UserProfile u : CommonUserList.getUserProfileList()) {
                     if (u.getUserProfile(user) != null) {
                         userExist = true;
                     }
                 }
-                if(!userExist){
+                if (!userExist) {
                     Firebase ref = dbHelper.getUserProfilePath(user);
                     ref.addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
@@ -98,7 +160,7 @@ public class ShareActivity extends AppCompatActivity {
 
             @Override
             public void onChildRemoved(DataSnapshot dataSnapshot) {
-
+                listAdapter.notifyDataSetChanged();
             }
 
             @Override
@@ -111,8 +173,6 @@ public class ShareActivity extends AppCompatActivity {
 
             }
         });
-
-
     }
 
     @Override
@@ -120,61 +180,65 @@ public class ShareActivity extends AppCompatActivity {
         super.onCreateContextMenu(menu, v, menuInfo);
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_share, menu);
-        MenuItem share = menu.findItem(R.id.action_share);
-        MenuItem delete = menu.findItem(R.id.action_delete);
-        MenuItem stopShare = menu.findItem(R.id.action_stopShare);
-        for(UserProfile u : CommonUserList.getUserProfileList()){
-            if(u.getIsSharing()){
-                share.setVisible(false);
-                delete.setVisible(false);
-                stopShare.setVisible(true);
-            }else{
-                share.setVisible(true);
-                delete.setVisible(true);
-                stopShare.setVisible(false);
-            }
-        }
     }
 
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
         int position = info.position;
-        String user = shareList.get(position);
-        switch (item.getItemId()){
-            case R.id.action_share:
-                for(UserProfile u : CommonUserList.getUserProfileList()){
-                    if(u.getUserProfile(user)!=null){
-                        u.setIsSharing(true);
+        String user = CommonUserList.getShareList().get(position);
+        if (item.getItemId() == R.id.action_delete) {
+            for (UserProfile u : CommonUserList.getUserProfileList()) {
+                final UserProfile uClone = u;
+                if (u.getUserProfile(user) != null) {
+                    if (u.getIsSharing()) {
+                        AlertDialog.Builder builder = new AlertDialog.Builder(ShareActivity.this);
+                        builder.setMessage("Sharing location with user will be stopped.")
+                                .setCancelable(false)
+                                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                    public void onClick(@SuppressWarnings("unused") DialogInterface dialog, @SuppressWarnings("unused") int id) {
+                                        onStopSharing(uClone);
+                                        onDeleteShareList(uClone);
+                                    }
+                                })
+                                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                    public void onClick(DialogInterface dialog, @SuppressWarnings("unused") int id) {
+                                        dialog.cancel();
+                                    }
+                                });
+                        final AlertDialog alert = builder.create();
+                        alert.show();
+                    } else {
+                        onDeleteShareList(uClone);
                     }
                 }
-                dbHelper.addSharingUser(user);
-                finish();
-                break;
-            case R.id.action_delete:
-                shareList.remove(position);
-                UserProfile userPro = null;
-                for(UserProfile u : CommonUserList.getUserProfileList()){
-                    if(u.getUserProfile(user)!=null){
-                        userPro = u;
-                    }
-                }
-//                CommonUserList.removeUserProfileList(userPro);
-                dbHelper.updateShareList(shareList);
-                listAdapter.notifyDataSetChanged();
-                break;
-            case R.id.action_stopShare:
-//                CommonUserList.removeUserSharingList(user);
-//                for(UserProfile u : CommonUserList.getUserProfileList()){
-//                    if(u.getUserProfile(user)!=null){
-//                        u.setIsSharing(false);
-//                    }
-//                }
-//                dbHelper.updateSharing(CommonUserList.getUserSharingList());
-//                listAdapter.notifyDataSetChanged();
-                break;
+            }
         }
         return super.onContextItemSelected(item);
+    }
+
+    private void onStopSharing(UserProfile u){
+        CommonUserList.removeUserSharingList(u.getGoogleID());
+        u.setIsSharing(false);
+        listAdapter.notifyDataSetChanged();
+        dbHelper.updateSharing(CommonUserList.getUserSharingList());
+        dbHelper.removeSharingUser(dbHelper.getGoogleID(), u.getGoogleID());
+        dbHelper.removeSharingUser(u.getGoogleID(), dbHelper.getGoogleID());
+    }
+
+    private void onDeleteShareList(UserProfile u){
+        boolean exist = false;
+        for(String name : CommonUserList.getShareList()){
+            if(name.equals(u.getGoogleID())){
+                exist = true;
+            }
+        }
+        if(exist){
+            CommonUserList.removeShareList(u.getGoogleID());
+        }
+        CommonUserList.removeUserProfileList(u);
+        listAdapter.notifyDataSetChanged();
+        dbHelper.updateShareList(CommonUserList.getShareList());
     }
 
     private void onAddShareList(){
@@ -197,14 +261,13 @@ public class ShareActivity extends AppCompatActivity {
                         public void onDataChange(DataSnapshot dataSnapshot) {
                             if (dataSnapshot.hasChild(googleid)) {
                                 boolean exist = false;
-                                for(int i = 0; i<shareList.size(); i++){
-                                    if(shareList.get(i).equals(googleid)){
+                                for(String s : CommonUserList.getShareList()){
+                                    if(s.equals(googleid)){
                                         exist = true;
                                     }
                                 }
                                 if(!exist){
-                                    shareList.add(googleid);
-                                    dbHelper.updateShareList(shareList);
+                                    dbHelper.addShareList(googleid);
                                     dialog.dismiss();
                                 }else{
                                     tv_msg.setText("Already added user.");

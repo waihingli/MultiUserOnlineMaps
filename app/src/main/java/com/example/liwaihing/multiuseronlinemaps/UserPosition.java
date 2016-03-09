@@ -3,6 +3,8 @@ package com.example.liwaihing.multiuseronlinemaps;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 
+import java.util.ArrayList;
+
 /**
  * Created by WaiHing on 7/3/2016.
  */
@@ -11,12 +13,14 @@ public class UserPosition {
     private double latitude;
     private double longitude;
     private double velocity;
+    private ArrayList<Marker> markers;
 
     protected UserPosition(String name, double lat, double lon, double v){
         username = name;
         latitude = lat;
         longitude = lon;
         velocity = v;
+        markers = new ArrayList<>();
     }
 
     public UserPosition getUserPosition(String name){
@@ -56,5 +60,17 @@ public class UserPosition {
 
     public LatLng getLatLng(){
         return new LatLng(getLatitude(), getLongitude());
+    }
+
+    public ArrayList<Marker> getMarkers(){
+        return markers;
+    }
+
+    public void setMarkers(ArrayList<Marker> m){
+        markers = m;
+    }
+
+    public void addMarkers(Marker m){
+        markers.add(m);
     }
 }

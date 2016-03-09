@@ -18,11 +18,11 @@ import android.widget.Toast;
 public class LocationService extends Service implements LocationListener {
 
     public static final String BROADCAST_ACTION = "LocationService";
-    public LocationManager locationManager;
+    public static LocationManager locationManager;
     Intent intent;
     private Location currentLocation = null;
 
-    public LocationManager getLocationManager(){
+    public static LocationManager getLocationManager(){
         return locationManager;
     }
 
@@ -42,15 +42,6 @@ public class LocationService extends Service implements LocationListener {
         Log.i("Service", "Location Service started");
 
         return super.onStartCommand(intent, flags, startId);
-    }
-
-    public Location getCurrentLocation(){
-        return currentLocation;
-    }
-
-    public Location getLastLocation(){
-        Location lastLocation = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), true));
-        return lastLocation;
     }
 
     @Override

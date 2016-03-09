@@ -56,8 +56,15 @@ public class UserListAdapter extends BaseAdapter {
         }else{
             holder = (ViewHolder) convertView.getTag();
         }
-        holder.userPic.setImageBitmap(data.get(position).getProfilePic());
-        holder.googleId.setText(data.get(position).getDisplayName());
+        String user = CommonUserList.getShareList().get(position);
+        UserProfile userPro = null;
+        for(UserProfile u : data){
+            if(u.getUserProfile(user)!=null){
+                userPro = u;
+            }
+        }
+        holder.userPic.setImageBitmap(userPro.getProfilePic());
+        holder.googleId.setText(userPro.getDisplayName());
         String status = "";
         if(data.get(position).getIsSharing()){
             status = "Sharing";

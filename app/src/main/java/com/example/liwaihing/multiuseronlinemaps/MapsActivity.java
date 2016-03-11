@@ -10,15 +10,26 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.location.Criteria;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.support.multidex.MultiDex;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.widget.DrawerLayout;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -63,6 +74,9 @@ public class MapsActivity extends FragmentActivity{
     private ArrayList<LatLng> markerPoints;
     private ArrayList<UserPosition> userPositionList;
     private Polyline polyline = null;
+    private DrawerLayout drawerLayout;
+    private ListView drawerList;
+    private DrawerListAdapter listAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,9 +108,24 @@ public class MapsActivity extends FragmentActivity{
                 polyline.remove();
             }
         });
+        setUpDrawerLayout();
         markerPoints = new ArrayList<>();
         userPositionList = new ArrayList<>();
         mMap.setOnMarkerClickListener(onClickMarker);
+    }
+
+    private void setUpDrawerLayout(){
+        drawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
+        drawerList = (ListView) findViewById(R.id.navList);
+        listAdapter = new DrawerListAdapter(this, CommonUserList.getUserProfileList());
+        drawerList.setAdapter(listAdapter);
+        drawerList.setOnItemClickListener(onListItemClickListener);
+        TextView tv_name = (TextView) findViewById(R.id.userName);
+        TextView tv_googleid = (TextView) findViewById(R.id.googleID);
+        ImageView img_pic = (ImageView) findViewById(R.id.profilePicture);
+        tv_name.setText(dbHelper.getDisplayname());
+        tv_googleid.setText(dbHelper.getGoogleID() + "@gmail.com");
+        img_pic.setImageBitmap(dbHelper.getProfilePicture());
     }
 
     private void setUpListener(){
@@ -109,6 +138,7 @@ public class MapsActivity extends FragmentActivity{
                 for(String name : CommonUserList.getUserSharingList()){
                     if (name.equals(user)){
                         isUserSharing = true;
+                        break;
                     }
                 }
 
@@ -117,8 +147,15 @@ public class MapsActivity extends FragmentActivity{
                     double lat = 0, lon = 0, v = 0;
                     UserPosition userPos = new UserPosition(user, lat, lon, v);
                     userPositionList.add(userPos);
+                    for(UserProfile up : CommonUserList.getUserProfileList()){
+                        if(up.getUserProfile(user)!=null){
+                            up.setIsSharing(true);
+                            break;
+                        }
+                    }
                     Firebase updatePosRef = dbHelper.getUserPositionPath(userPos.getUsername());
                     updatePosRef.addValueEventListener(onSharingPosUpdateListener);
+                    listAdapter.notifyDataSetChanged();
                 }
             }
 
@@ -136,18 +173,22 @@ public class MapsActivity extends FragmentActivity{
                             Marker m = u.getMarkers().get(0);
                             m.remove();
                         }
+                        layout_pos.setVisibility(View.GONE);
                         if(polyline!=null){
                             polyline.remove();
                         }
                         for(UserProfile up : CommonUserList.getUserProfileList()){
                             if(up.getUserProfile(name)!=null){
                                 up.setIsSharing(false);
+                                break;
                             }
                         }
                         userPositionList.remove(u);
                         CommonUserList.removeUserSharingList(u.getUsername());
                         Firebase updatePosRef = dbHelper.getUserPositionPath(name);
                         updatePosRef.removeEventListener(onSharingPosUpdateListener);
+                        listAdapter.notifyDataSetChanged();
+                        break;
                     }
                 }
             }
@@ -298,6 +339,7 @@ public class MapsActivity extends FragmentActivity{
             for (UserPosition u : userPositionList){
                 if (u.getUserPosition(name)!=null){
                     userPos = u;
+                    break;
                 }
             }
             markerPoints.add(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
@@ -309,6 +351,7 @@ public class MapsActivity extends FragmentActivity{
                     for(UserPosition u : userPositionList){
                         if(u.getUserPosition(name)!=null){
                             marker.remove();
+                            break;
                         }
                     }
                     dbHelper.removeSharingUser(dbHelper.getGoogleID(), name);
@@ -334,10 +377,27 @@ public class MapsActivity extends FragmentActivity{
         }
     };
 
+    private AdapterView.OnItemClickListener onListItemClickListener = new AdapterView.OnItemClickListener(){
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            double lat = 0;
+            double lon = 0;
+            String user = CommonUserList.getUserSharingList().get(position);
+            for (UserPosition u : userPositionList){
+                if(u.getUserPosition(user)!=null){
+                    lat = u.getLatitude();
+                    lon = u.getLongitude();
+                    break;
+                }
+            }
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lon), 16));
+        }
+    };
+
     private ImageButton.OnClickListener onClickMenu = new ImageButton.OnClickListener(){
         @Override
         public void onClick(View v) {
-
+            drawerLayout.openDrawer(Gravity.LEFT);
         }
     };
 
@@ -384,12 +444,9 @@ public class MapsActivity extends FragmentActivity{
     }
 
     private void setUpMapIfNeeded() {
-        // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
-            // Try to obtain the map from the SupportMapFragment.
             mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                     .getMap();
-            // Check if we were successful in obtaining the map.
             if (mMap != null) {
                 setUpMap();
             }
@@ -398,9 +455,14 @@ public class MapsActivity extends FragmentActivity{
 
     private void setUpMap() {
         mMap.setMyLocationEnabled(true);
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        Location lastLocation = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), true));
+        if(lastLocation != null){
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude()), 16));
+        }
         if(currentLocation != null){
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), 16));
-        }else{
+        } else {
             Toast.makeText(this, "Location not find", Toast.LENGTH_SHORT);
         }
     }
@@ -451,7 +513,8 @@ public class MapsActivity extends FragmentActivity{
         String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
         String str_dest = "destination=" + dest.latitude + "," + dest.longitude;
         String sensor = "sensor=false";
-        String parameters = str_origin + "&" + str_dest + "&" + sensor;
+        String mode = "mode=walking";
+        String parameters = str_origin + "&" + str_dest + "&" + sensor + "&" + mode;
         String output = "json";
         String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters;
 
@@ -507,6 +570,60 @@ public class MapsActivity extends FragmentActivity{
             if(currentLocation!=null) {
                 dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity());
             }
+        }
+    }
+
+    public class DrawerListAdapter extends BaseAdapter{
+        ArrayList<UserProfile> data;
+        LayoutInflater layoutInflater;
+
+        class ViewHolder{
+            ImageView userPic;
+            TextView googleId;
+        }
+
+        public DrawerListAdapter(Context context, ArrayList<UserProfile> data){
+            this.data = data;
+            layoutInflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount() {
+            return data.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return data.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            ViewHolder holder;
+            if(convertView==null){
+                convertView=layoutInflater.inflate(R.layout.layout_draweritem, null);
+                holder = new ViewHolder();
+                holder.userPic = (ImageView) convertView.findViewById(R.id.img_profilePic);
+                holder.googleId = (TextView) convertView.findViewById(R.id.tv_googleid);
+                convertView.setTag(holder);
+            }else{
+                holder = (ViewHolder) convertView.getTag();
+            }
+            String user = CommonUserList.getUserSharingList().get(position);
+            UserProfile userPro = null;
+            for(UserProfile u : data){
+                if(u.getUserProfile(user)!=null){
+                    userPro = u;
+                }
+            }
+            holder.userPic.setImageBitmap(userPro.getProfilePic());
+            holder.googleId.setText(userPro.getDisplayName());
+            return convertView;
         }
     }
 

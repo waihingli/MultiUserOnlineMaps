@@ -17,7 +17,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,12 +26,10 @@ import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
 
-import java.util.ArrayList;
-
 public class ShareActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private ListView lv_shareList;
-    private UserListAdapter listAdapter;
+    private ShareListAdapter listAdapter;
     Context c;
 
     @Override
@@ -57,7 +54,7 @@ public class ShareActivity extends AppCompatActivity {
         dbHelper = new DatabaseHelper(this);
         setUpListener();
         lv_shareList = (ListView) findViewById(R.id.lv_sharelist);
-        listAdapter = new UserListAdapter(this, CommonUserList.getUserProfileList());
+        listAdapter = new ShareListAdapter(this, CommonUserList.getUserProfileList());
         lv_shareList.setAdapter(listAdapter);
         c = this;
         lv_shareList.setOnItemClickListener(onListItemClickListener);

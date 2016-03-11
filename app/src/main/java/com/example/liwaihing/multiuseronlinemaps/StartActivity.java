@@ -207,7 +207,9 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
                 break;
             case R.id.btn_proceed:
                 if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                    startActivity(MapsActivity.class);
+                    Intent i = new Intent(this, MapsActivity.class);
+                    i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
                 }
                 break;
         }
@@ -256,11 +258,6 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
             }
         }
         return false;
-    }
-
-    private void startActivity(Class c){
-        Intent i = new Intent(this, c);
-        startActivity(i);
     }
 
     private void startService(Class c){

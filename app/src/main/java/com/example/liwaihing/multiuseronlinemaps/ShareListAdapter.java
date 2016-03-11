@@ -13,7 +13,7 @@ import java.util.ArrayList;
 /**
  * Created by WaiHing on 8/3/2016.
  */
-public class UserListAdapter extends BaseAdapter {
+public class ShareListAdapter extends BaseAdapter {
     ArrayList<UserProfile> data;
     LayoutInflater layoutInflater;
 
@@ -23,7 +23,7 @@ public class UserListAdapter extends BaseAdapter {
         TextView status;
     }
 
-    public UserListAdapter(Context context, ArrayList<UserProfile> data){
+    public ShareListAdapter(Context context, ArrayList<UserProfile> data){
         this.data = data;
         layoutInflater = LayoutInflater.from(context);
     }
@@ -47,7 +47,7 @@ public class UserListAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
         if(convertView==null){
-            convertView=layoutInflater.inflate(R.layout.layout_listview, null);
+            convertView=layoutInflater.inflate(R.layout.layout_sharelistitem, null);
             holder = new ViewHolder();
             holder.userPic = (ImageView) convertView.findViewById(R.id.img_profilePic);
             holder.googleId = (TextView) convertView.findViewById(R.id.tv_googleid);

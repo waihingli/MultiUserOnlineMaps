@@ -2,7 +2,10 @@ package com.example.liwaihing.multiuseronlinemaps;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
+import android.util.Base64;
 
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
@@ -33,6 +36,21 @@ public class DatabaseHelper {
 
     public String getGoogleID(){
         return googleID;
+    }
+
+    public String getDisplayname(){
+        return displayname;
+    }
+
+    public Bitmap getProfilePicture(){
+        try{
+            byte[] encodeByte= Base64.decode(profilePic, Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(encodeByte, 0, encodeByte.length);
+            return bitmap;
+        }catch(Exception e){
+            e.getMessage();
+            return null;
+        }
     }
 
     private void updateUserProfile(){
@@ -139,6 +157,9 @@ public class DatabaseHelper {
     public void stopSharing(){
         final Firebase sharingRef = getUserSharingPath(googleID);
         sharingRef.removeValue();
+        for(String name : CommonUserList.getUserSharingList()){
+            removeSharingUser(googleID, name);
+        }
     }
 
     public void inviteUserSharing(String user){

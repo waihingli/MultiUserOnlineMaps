@@ -3,14 +3,12 @@ package com.example.liwaihing.multiuseronlinemaps;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
-import android.widget.Toast;
 
 /**
  * Created by WaiHing on 21/2/2016.
@@ -20,17 +18,11 @@ public class LocationService extends Service implements LocationListener {
     public static final String BROADCAST_ACTION = "LocationService";
     public static LocationManager locationManager;
     Intent intent;
-    private Location currentLocation = null;
-
-    public static LocationManager getLocationManager(){
-        return locationManager;
-    }
 
     @Override
     public void onCreate() {
         super.onCreate();
         intent = new Intent(BROADCAST_ACTION);
-
     }
 
     @Override
@@ -57,11 +49,9 @@ public class LocationService extends Service implements LocationListener {
 
     @Override
     public void onLocationChanged(Location location) {
-        currentLocation = location;
-
         Intent i = new Intent();
-        i.putExtra("location", location);
-        i.setAction(Params.LOCATION_SERVICE);
+        i.putExtra(Constants.LOCATION_LOCATION, location);
+        i.setAction(Constants.LOCATION_SERVICE);
         sendBroadcast(i);
     }
 

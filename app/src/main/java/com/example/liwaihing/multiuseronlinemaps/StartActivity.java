@@ -58,15 +58,24 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         settings = getSharedPreferences("user_auth", MODE_PRIVATE);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         setUpService();
+        setUpGoogleApiClient();
         permissionCheck();
-        setUpGPlusService();
+        if (settings.getString("googleID", "").isEmpty()) {
+            setUpGPlusLayout();
+        }else{
+            if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                Intent i = new Intent(this, MapsActivity.class);
+                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+            }
+        }
     }
 
     private void setUpService(){
         if(!isMyServiceRunning(LocationService.class)) {
             startService(LocationService.class);
         }
-        if(!isMyServiceRunning(SensorService.class)) {
+        if (!isMyServiceRunning(SensorService.class)) {
             startService(SensorService.class);
         }
     }
@@ -91,8 +100,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         }
     }
 
-    private void setUpGPlusService(){
-        setUpGoogleApiClient();
+    private void setUpGPlusLayout(){
         btn_SignIn = (SignInButton) findViewById(R.id.btn_signIn);
         btn_SignIn.setSize(SignInButton.SIZE_STANDARD);
         btn_SignIn.setScopes(new Scope[]{Plus.SCOPE_PLUS_LOGIN});
@@ -145,6 +153,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
                         setUpGoogleApiClient();
                         googleApiClient.connect();
                         updateUI(false);
+                        settings.edit().clear().commit();
                     }
                 });
         }
@@ -221,6 +230,15 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         if (googleApiClient.isConnected()) {
             googleApiClient.connect();
         }
+        if (settings.getString("googleID", "").isEmpty()){
+            setUpGPlusLayout();
+        }else{
+            if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                Intent i = new Intent(this, MapsActivity.class);
+                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+            }
+        }
     }
 
     @Override
@@ -244,8 +262,6 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
 
     @Override
     protected void onDestroy() {
-        stopService(LocationService.class);
-        stopService(SensorService.class);
         super.onDestroy();
     }
 
@@ -263,11 +279,6 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
     private void startService(Class c){
         Intent i = new Intent(this, c);
         startService(i);
-    }
-
-    private void stopService(Class c){
-        Intent i = new Intent(this, c);
-        stopService(i);
     }
 
     @Override

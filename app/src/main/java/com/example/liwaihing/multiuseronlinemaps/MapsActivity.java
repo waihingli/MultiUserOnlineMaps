@@ -1,23 +1,25 @@
 package com.example.liwaihing.multiuseronlinemaps;
 
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.location.Criteria;
 import android.location.Location;
-import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.support.multidex.MultiDex;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.DrawerLayout;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,7 +31,6 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,6 +39,12 @@ import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.ActivityRecognition;
+import com.google.android.gms.location.DetectedActivity;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -61,14 +68,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class MapsActivity extends FragmentActivity{
+public class MapsActivity extends FragmentActivity {
+    private static final String TAG = "MapsActivity";
+    private GoogleApiClient mGoogleApiClient;
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private Location currentLocation = null;
     private Velocity velocity;
     private DatabaseHelper dbHelper;
     private MyBroadcastReceiver myBroadcastReceiver;
     private ImageButton btn_menu, btn_share;
-    private TextView tv_GPS, tv_Sensor, tv_Distance, tv_Duration;
+    private TextView tv_GPS, tv_Sensor, tv_Distance, tv_Duration, tv_activity;
     private LinearLayout layout_pos;
     private double distance = 0;
     private ArrayList<LatLng> markerPoints;
@@ -78,14 +87,16 @@ public class MapsActivity extends FragmentActivity{
     private ListView drawerList;
     private DrawerListAdapter listAdapter;
 
+    int counter = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
         myBroadcastReceiver = new MyBroadcastReceiver();
         IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(Params.LOCATION_SERVICE);
-        intentFilter.addAction(Params.SENSOR_SERVICE);
+        intentFilter.addAction(Constants.LOCATION_SERVICE);
+        intentFilter.addAction(Constants.SENSOR_SERVICE);
         this.registerReceiver(myBroadcastReceiver, intentFilter);
         velocity = Velocity.getInstance();
         dbHelper = new DatabaseHelper(this);
@@ -100,6 +111,7 @@ public class MapsActivity extends FragmentActivity{
         tv_Sensor = (TextView) findViewById(R.id.tv_SensorV);
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
+        tv_activity = (TextView) findViewById(R.id.textView2);
         layout_pos = (LinearLayout) findViewById(R.id.layout_posDetail);
         layout_pos.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -112,6 +124,7 @@ public class MapsActivity extends FragmentActivity{
         markerPoints = new ArrayList<>();
         userPositionList = new ArrayList<>();
         mMap.setOnMarkerClickListener(onClickMarker);
+
     }
 
     private void setUpDrawerLayout(){
@@ -132,7 +145,7 @@ public class MapsActivity extends FragmentActivity{
         Firebase sharingRef = dbHelper.getUserSharingPath(dbHelper.getGoogleID());
         sharingRef.addChildEventListener(new ChildEventListener() {
             @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+            public synchronized void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 String user = dataSnapshot.getValue(String.class);
                 boolean isUserSharing = false;
                 for(String name : CommonUserList.getUserSharingList()){
@@ -207,7 +220,7 @@ public class MapsActivity extends FragmentActivity{
         Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
         inviteRef.addChildEventListener(new ChildEventListener() {
             @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+            public synchronized void onChildAdded(DataSnapshot dataSnapshot, String s) {
                 final String user = dataSnapshot.getKey();
                 Firebase ref = dbHelper.getUserProfilePath(user);
                 ref.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -228,6 +241,7 @@ public class MapsActivity extends FragmentActivity{
                                         for(UserProfile up : CommonUserList.getUserProfileList()){
                                             if(up.getUserProfile(userPro.getGoogleID())!=null){
                                                 exist = true;
+                                                break;
                                             }
                                         }
                                         if(!exist){
@@ -455,11 +469,6 @@ public class MapsActivity extends FragmentActivity{
 
     private void setUpMap() {
         mMap.setMyLocationEnabled(true);
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        Location lastLocation = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), true));
-        if(lastLocation != null){
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude()), 16));
-        }
         if(currentLocation != null){
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), 16));
         } else {
@@ -552,20 +561,20 @@ public class MapsActivity extends FragmentActivity{
         public void onReceive(Context context, Intent intent) {
             Bundle bundle = intent.getExtras();
             DecimalFormat df = new DecimalFormat("#.###");
-            if(intent.getAction().equals(Params.LOCATION_SERVICE)){
+            if(intent.getAction().equals(Constants.LOCATION_SERVICE)){
                 if(currentLocation == null){
-                    currentLocation = (Location) bundle.get("location");
+                    currentLocation = (Location) bundle.get(Constants.LOCATION_LOCATION);
                     setUpMap();
                 }
-                currentLocation = (Location) bundle.get("location");
+                currentLocation = (Location) bundle.get(Constants.LOCATION_LOCATION);
                 velocity.onGPSUpdate(currentLocation);
                 tv_GPS.setText(df.format(velocity.getGPSVelocity()*100) + " cm/s");
             }
-            if(intent.getAction().equals(Params.SENSOR_SERVICE)){
-                double acceleration = bundle.getDouble("acceleration");
-                long time = bundle.getLong("time");
-                velocity.onSensorUpdate(acceleration, time);
-                tv_Sensor.setText(df.format(velocity.getAccelerometerVelocity()*100) + " cm/s");
+            if(intent.getAction().equals(Constants.SENSOR_SERVICE)){
+                long time = bundle.getLong(Constants.SENSOR_TIME);
+                float[] vals = bundle.getFloatArray(Constants.SENSOR_ACCEVALS);
+                velocity.onSensorUpdate(time, vals);
+                tv_Sensor.setText(df.format(velocity.getAccelerometerVelocity() * 100) + " cm/s");
             }
             if(currentLocation!=null) {
                 dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity());
@@ -614,15 +623,18 @@ public class MapsActivity extends FragmentActivity{
             }else{
                 holder = (ViewHolder) convertView.getTag();
             }
-            String user = CommonUserList.getUserSharingList().get(position);
-            UserProfile userPro = null;
-            for(UserProfile u : data){
-                if(u.getUserProfile(user)!=null){
-                    userPro = u;
+            if(CommonUserList.getShareList().size()<position){
+                String user = CommonUserList.getUserSharingList().get(position);
+                UserProfile userPro = null;
+                for(UserProfile u : data){
+                    if(u.getUserProfile(user)!=null){
+                        userPro = u;
+                    }
                 }
+                holder.userPic.setImageBitmap(userPro.getProfilePic());
+                holder.googleId.setText(userPro.getDisplayName());
+
             }
-            holder.userPic.setImageBitmap(userPro.getProfilePic());
-            holder.googleId.setText(userPro.getDisplayName());
             return convertView;
         }
     }

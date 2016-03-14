@@ -17,6 +17,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,7 +31,7 @@ public class ShareActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private ListView lv_shareList;
     private ShareListAdapter listAdapter;
-    Context c;
+//    Context c;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,7 +57,6 @@ public class ShareActivity extends AppCompatActivity {
         lv_shareList = (ListView) findViewById(R.id.lv_sharelist);
         listAdapter = new ShareListAdapter(this, CommonUserList.getUserProfileList());
         lv_shareList.setAdapter(listAdapter);
-        c = this;
         lv_shareList.setOnItemClickListener(onListItemClickListener);
         this.registerForContextMenu(lv_shareList);
     }
@@ -190,9 +190,9 @@ public class ShareActivity extends AppCompatActivity {
                 if (u.getUserProfile(user) != null) {
                     if (u.getIsSharing()) {
                         AlertDialog.Builder builder = new AlertDialog.Builder(ShareActivity.this);
-                        builder.setMessage("Sharing location with user will be stopped.")
+                        builder.setMessage("Delete " + uClone.getDisplayName() + "? Sharing location will be stopped. ")
                                 .setCancelable(false)
-                                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
                                     public void onClick(@SuppressWarnings("unused") DialogInterface dialog, @SuppressWarnings("unused") int id) {
                                         onStopSharing(uClone);
                                         onDeleteShareList(uClone);
@@ -216,9 +216,10 @@ public class ShareActivity extends AppCompatActivity {
 
     private void onStopSharing(UserProfile u){
         CommonUserList.removeUserSharingList(u.getGoogleID());
+        CommonUserList.removeSharingProfileList(u);
         u.setIsSharing(false);
         listAdapter.notifyDataSetChanged();
-        dbHelper.updateSharing(CommonUserList.getUserSharingList());
+//        dbHelper.updateSharing(CommonUserList.getUserSharingList());
         dbHelper.removeSharingUser(dbHelper.getGoogleID(), u.getGoogleID());
         dbHelper.removeSharingUser(u.getGoogleID(), dbHelper.getGoogleID());
     }
@@ -256,21 +257,25 @@ public class ShareActivity extends AppCompatActivity {
                     ref.addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
                         public void onDataChange(DataSnapshot dataSnapshot) {
-                            if (dataSnapshot.hasChild(googleid)) {
-                                boolean exist = false;
-                                for(String s : CommonUserList.getShareList()){
-                                    if(s.equals(googleid)){
-                                        exist = true;
+                            if(!googleid.equals(dbHelper.getGoogleID())){
+                                if (dataSnapshot.hasChild(googleid)) {
+                                    boolean exist = false;
+                                    for(String s : CommonUserList.getShareList()){
+                                        if(s.equals(googleid)){
+                                            exist = true;
+                                        }
                                     }
-                                }
-                                if(!exist){
-                                    dbHelper.addShareList(googleid);
-                                    dialog.dismiss();
+                                    if(!exist){
+                                        dbHelper.addShareList(googleid);
+                                        dialog.dismiss();
+                                    }else{
+                                        tv_msg.setText("Already added user.");
+                                    }
                                 }else{
-                                    tv_msg.setText("Already added user.");
+                                    tv_msg.setText("User does not exist.");
                                 }
                             }else{
-                                tv_msg.setText("User does not exist.");
+                                tv_msg.setText("Google ID is same as your account.");
                             }
                         }
 
@@ -319,27 +324,5 @@ public class ShareActivity extends AppCompatActivity {
     private void stopService(Class c){
         Intent i = new Intent(this, c);
         stopService(i);
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_share, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 }

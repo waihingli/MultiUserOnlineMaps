@@ -8,6 +8,7 @@ import java.util.ArrayList;
 public class CommonUserList {
     private static ArrayList<UserProfile> userProfileList = new ArrayList<>();
     private static ArrayList<String> userSharingList = new ArrayList<>();
+    private static ArrayList<UserProfile> sharingProfileList = new ArrayList<>();
     private static ArrayList<String> shareList = new ArrayList<>();
 
     public static ArrayList<UserProfile> getUserProfileList() {
@@ -32,6 +33,18 @@ public class CommonUserList {
 
     public static void removeUserSharingList(String s){
         userSharingList.remove(s);
+    }
+
+    public static ArrayList<UserProfile> getSharingProfileList() {
+        return sharingProfileList;
+    }
+
+    public static void addSharingProfileList(UserProfile u){
+        sharingProfileList.add(u);
+    }
+
+    public static void removeSharingProfileList(UserProfile u){
+        sharingProfileList.remove(u);
     }
 
     public static ArrayList<String> getShareList() {

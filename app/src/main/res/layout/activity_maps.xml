@@ -30,82 +30,71 @@
                 android:name="com.google.android.gms.maps.SupportMapFragment" />
 
             <LinearLayout
-                android:orientation="vertical"
+                android:orientation="horizontal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/layout_posDetail"
                 android:background="@color/posdetail_bg">
-                <!--android:visibility="gone"-->
+                <!--android:visibility="gone">-->
+
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:id="@+id/img_profilePic"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:src="@android:drawable/sym_def_app_icon"
+                    android:layout_margin="10dp"
+                    android:layout_gravity="center_vertical" />
 
                 <LinearLayout
-                    android:orientation="horizontal"
+                    android:orientation="vertical"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?android:attr/textAppearanceLarge"
-                        android:text="GPS: "
-                        android:id="@+id/textView" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?android:attr/textAppearanceLarge"
-                        android:text="Large Text"
-                        android:id="@+id/tv_GPSV" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:orientation="horizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?android:attr/textAppearanceLarge"
-                        android:text="Accelerometer: "
-                        android:id="@+id/textView4" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?android:attr/textAppearanceLarge"
-                        android:text="Large Text"
-                        android:id="@+id/tv_SensorV" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:orientation="horizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?android:attr/textAppearanceLarge"
-                        android:text="Large Text"
-                        android:id="@+id/tv_distance" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?android:attr/textAppearanceLarge"
-                        android:text="Large Text"
-                        android:id="@+id/tv_duration"
-                        android:layout_marginLeft="30dp" />
-                </LinearLayout>
-
-                <Button
-                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Stop Sharing"
-                    android:id="@+id/btn_stopShare" />
+                    android:layout_gravity="center_vertical">
+
+                    <LinearLayout
+                        android:orientation="horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?android:attr/textAppearanceLarge"
+                            android:text="Speed: "
+                            android:id="@+id/textView4" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?android:attr/textAppearanceLarge"
+                            android:text=""
+                            android:id="@+id/tv_Velocity" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:orientation="horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?android:attr/textAppearanceLarge"
+                            android:text=""
+                            android:id="@+id/tv_distance" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?android:attr/textAppearanceLarge"
+                            android:text=""
+                            android:id="@+id/tv_duration"
+                            android:layout_marginLeft="30dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
             </LinearLayout>
+
         </RelativeLayout>
     </LinearLayout>
 
@@ -114,8 +103,6 @@
         android:layout_height="match_parent"
         android:id="@+id/drawerPane"
         android:layout_gravity="start">
-
-        <!-- Profile Box -->
 
         <RelativeLayout
             android:id="@+id/profileBox"
@@ -160,12 +147,36 @@
             </LinearLayout>
         </RelativeLayout>
 
-        <!-- List of Actions (pages) -->
+        <LinearLayout
+            android:id="@+id/addSharing"
+            android:orientation="horizontal"
+            android:layout_width="280dp"
+            android:layout_height="wrap_content"
+            android:background="@android:color/white"
+            android:layout_below="@+id/profileBox">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/add_icon_black"
+                android:id="@+id/imageView"
+                android:layout_margin="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:textColor="@android:color/black"
+                android:text="Invite User"
+                android:id="@+id/tv_invite"
+                android:layout_gravity="center_vertical" />
+        </LinearLayout>
+
         <ListView
             android:id="@+id/navList"
             android:layout_width="280dp"
             android:layout_height="match_parent"
-            android:layout_below="@+id/profileBox"
+            android:layout_below="@+id/addSharing"
             android:choiceMode="singleChoice"
             android:background="#ffffffff" />
 

@@ -186,8 +186,10 @@ public class DatabaseHelper {
                 if (dataSnapshot.hasChildren()) {
                     for (int i = 0; i < dataSnapshot.getChildrenCount(); i++) {
                         String name = dataSnapshot.child(i + "").getValue(String.class);
-                        Firebase inviteRef = getUserInvitationPath(name);
-                        inviteRef.child(googleID).removeValue();
+                        if(!name.isEmpty()){
+                            Firebase inviteRef = getUserInvitationPath(name);
+                            inviteRef.child(googleID).removeValue();
+                        }
                     }
                 }
             }

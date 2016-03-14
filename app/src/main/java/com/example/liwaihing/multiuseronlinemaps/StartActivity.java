@@ -59,16 +59,8 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         setUpService();
         setUpGoogleApiClient();
+        progress_dialog = new ProgressDialog(this);
         permissionCheck();
-        if (settings.getString("googleID", "").isEmpty()) {
-            setUpGPlusLayout();
-        }else{
-            if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                Intent i = new Intent(this, MapsActivity.class);
-                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(i);
-            }
-        }
     }
 
     private void setUpService(){
@@ -107,7 +99,6 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         btn_SignIn.setOnClickListener(this);
         findViewById(R.id.btn_signOut).setOnClickListener(this);
         findViewById(R.id.btn_proceed).setOnClickListener(this);
-        progress_dialog = new ProgressDialog(this);
         progress_dialog.setMessage("Signing in....");
     }
 
@@ -289,6 +280,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
 
     @Override
     public void onConnected(Bundle arg0) {
+        progress_dialog.dismiss();
         isSignInBtnClicked = false;
         getProfileInfo();
         updateUI(true);
@@ -352,27 +344,5 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
             editor.putString("profilePic", temp);
             editor.commit();
         }
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_start, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 }

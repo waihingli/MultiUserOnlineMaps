@@ -28,10 +28,9 @@
             android:nestedScrollingEnabled="false" />
     </RelativeLayout>
 
-    <ListView
+       <ListView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/lv_sharelist"
         android:longClickable="true"/>
-
 </LinearLayout>

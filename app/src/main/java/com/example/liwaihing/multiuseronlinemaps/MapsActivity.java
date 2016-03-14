@@ -20,8 +20,11 @@ import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
+import android.view.ContextMenu;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -69,16 +72,14 @@ import java.util.HashMap;
 import java.util.List;
 
 public class MapsActivity extends FragmentActivity {
-    private static final String TAG = "MapsActivity";
-    private GoogleApiClient mGoogleApiClient;
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private Location currentLocation = null;
     private Velocity velocity;
     private DatabaseHelper dbHelper;
     private MyBroadcastReceiver myBroadcastReceiver;
     private ImageButton btn_menu, btn_share;
-    private TextView tv_GPS, tv_Sensor, tv_Distance, tv_Duration, tv_activity;
-    private LinearLayout layout_pos;
+    private TextView tv_Distance, tv_Duration, tv_activity;
+    private LinearLayout layout_pos, layout_addSharing;
     private double distance = 0;
     private ArrayList<LatLng> markerPoints;
     private ArrayList<UserPosition> userPositionList;
@@ -86,8 +87,7 @@ public class MapsActivity extends FragmentActivity {
     private DrawerLayout drawerLayout;
     private ListView drawerList;
     private DrawerListAdapter listAdapter;
-
-    int counter = 0;
+    private double userVelocity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,6 +99,7 @@ public class MapsActivity extends FragmentActivity {
         intentFilter.addAction(Constants.SENSOR_SERVICE);
         this.registerReceiver(myBroadcastReceiver, intentFilter);
         velocity = Velocity.getInstance();
+        Firebase.setAndroidContext(this);
         dbHelper = new DatabaseHelper(this);
         dbHelper.stopSharing();
         setUpMapIfNeeded();
@@ -107,12 +108,11 @@ public class MapsActivity extends FragmentActivity {
         btn_share = (ImageButton) findViewById(R.id.btn_share);
         btn_menu.setOnClickListener(onClickMenu);
         btn_share.setOnClickListener(onClickShare);
-        tv_GPS = (TextView) findViewById(R.id.tv_GPSV);
-        tv_Sensor = (TextView) findViewById(R.id.tv_SensorV);
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
         tv_activity = (TextView) findViewById(R.id.textView2);
         layout_pos = (LinearLayout) findViewById(R.id.layout_posDetail);
+        layout_addSharing = (LinearLayout) findViewById(R.id.addSharing);
         layout_pos.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -120,17 +120,23 @@ public class MapsActivity extends FragmentActivity {
                 polyline.remove();
             }
         });
+        layout_addSharing.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(ShareActivity.class);
+                drawerLayout.closeDrawers();
+            }
+        });
         setUpDrawerLayout();
         markerPoints = new ArrayList<>();
         userPositionList = new ArrayList<>();
         mMap.setOnMarkerClickListener(onClickMarker);
-
     }
 
     private void setUpDrawerLayout(){
         drawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
         drawerList = (ListView) findViewById(R.id.navList);
-        listAdapter = new DrawerListAdapter(this, CommonUserList.getUserProfileList());
+        listAdapter = new DrawerListAdapter(this, CommonUserList.getSharingProfileList());
         drawerList.setAdapter(listAdapter);
         drawerList.setOnItemClickListener(onListItemClickListener);
         TextView tv_name = (TextView) findViewById(R.id.userName);
@@ -139,6 +145,7 @@ public class MapsActivity extends FragmentActivity {
         tv_name.setText(dbHelper.getDisplayname());
         tv_googleid.setText(dbHelper.getGoogleID() + "@gmail.com");
         img_pic.setImageBitmap(dbHelper.getProfilePicture());
+        this.registerForContextMenu(drawerList);
     }
 
     private void setUpListener(){
@@ -163,6 +170,7 @@ public class MapsActivity extends FragmentActivity {
                     for(UserProfile up : CommonUserList.getUserProfileList()){
                         if(up.getUserProfile(user)!=null){
                             up.setIsSharing(true);
+                            CommonUserList.addSharingProfileList(up);
                             break;
                         }
                     }
@@ -178,7 +186,7 @@ public class MapsActivity extends FragmentActivity {
             }
 
             @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
+            public synchronized void onChildRemoved(DataSnapshot dataSnapshot) {
                 String name = dataSnapshot.getValue(String.class);
                 for(UserPosition u : userPositionList){
                     if(u.getUserPosition(name)!=null){
@@ -193,6 +201,7 @@ public class MapsActivity extends FragmentActivity {
                         for(UserProfile up : CommonUserList.getUserProfileList()){
                             if(up.getUserProfile(name)!=null){
                                 up.setIsSharing(false);
+                                CommonUserList.removeSharingProfileList(up);
                                 break;
                             }
                         }
@@ -218,79 +227,7 @@ public class MapsActivity extends FragmentActivity {
         });
 
         Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
-        inviteRef.addChildEventListener(new ChildEventListener() {
-            @Override
-            public synchronized void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                final String user = dataSnapshot.getKey();
-                Firebase ref = dbHelper.getUserProfilePath(user);
-                ref.addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        final UserProfile userPro = new UserProfile(user);
-                        userPro.setDisplayName(dataSnapshot.child("Name").getValue(String.class));
-                        userPro.setProfilePic(dataSnapshot.child("Picture").getValue(String.class));
-
-                        String msg = userPro.getDisplayName() + " invited you to share location.";
-                        AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-                        builder.setMessage(msg)
-                                .setCancelable(false)
-                                .setPositiveButton("Accept", new DialogInterface.OnClickListener() {
-                                    public void onClick(@SuppressWarnings("unused") DialogInterface dialog, @SuppressWarnings("unused") int id) {
-                                        userPro.setIsSharing(true);
-                                        boolean exist = false;
-                                        for(UserProfile up : CommonUserList.getUserProfileList()){
-                                            if(up.getUserProfile(userPro.getGoogleID())!=null){
-                                                exist = true;
-                                                break;
-                                            }
-                                        }
-                                        if(!exist){
-                                            CommonUserList.addUserProfileList(userPro);
-                                            CommonUserList.addShareList(userPro.getGoogleID());
-                                        }
-                                        dbHelper.addSharingUser(userPro.getGoogleID(), dbHelper.getGoogleID());
-                                        dbHelper.addSharingUser(dbHelper.getGoogleID(), userPro.getGoogleID());
-                                        dbHelper.removeInvitation(userPro.getGoogleID());
-                                        dbHelper.addShareList(userPro.getGoogleID());
-                                    }
-                                })
-                                .setNegativeButton("Reject", new DialogInterface.OnClickListener() {
-                                    public void onClick(DialogInterface dialog, @SuppressWarnings("unused") int id) {
-                                        dbHelper.removeInvitation(userPro.getGoogleID());
-                                        dialog.cancel();
-                                    }
-                                });
-                        final AlertDialog alert = builder.create();
-                        alert.show();
-                    }
-
-                    @Override
-                    public void onCancelled(FirebaseError firebaseError) {
-
-                    }
-                });
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-
-            }
-        });
+        inviteRef.addChildEventListener(onInviteListener);
     }
 
     private ValueEventListener onSharingPosUpdateListener = new ValueEventListener() {
@@ -341,6 +278,80 @@ public class MapsActivity extends FragmentActivity {
         }
     };
 
+    private ChildEventListener onInviteListener = new ChildEventListener() {
+        @Override
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+            final String user = dataSnapshot.getKey();
+            Firebase ref = dbHelper.getUserProfilePath(user);
+            ref.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    final UserProfile userPro = new UserProfile(user);
+                    userPro.setDisplayName(dataSnapshot.child("Name").getValue(String.class));
+                    userPro.setProfilePic(dataSnapshot.child("Picture").getValue(String.class));
+
+                    String msg = userPro.getDisplayName() + " invited you to share location.";
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+                    builder.setMessage(msg)
+                            .setCancelable(false)
+                            .setPositiveButton("Accept", new DialogInterface.OnClickListener() {
+                                public void onClick(@SuppressWarnings("unused") DialogInterface dialog, @SuppressWarnings("unused") int id) {
+                                    userPro.setIsSharing(true);
+                                    boolean exist = false;
+                                    for(UserProfile up : CommonUserList.getUserProfileList()){
+                                        if(up.getUserProfile(userPro.getGoogleID())!=null){
+                                            exist = true;
+                                            break;
+                                        }
+                                    }
+                                    if(!exist){
+                                        CommonUserList.addUserProfileList(userPro);
+                                        CommonUserList.addShareList(userPro.getGoogleID());
+                                    }
+                                    dbHelper.addSharingUser(userPro.getGoogleID(), dbHelper.getGoogleID());
+                                    dbHelper.addSharingUser(dbHelper.getGoogleID(), userPro.getGoogleID());
+                                    dbHelper.removeInvitation(userPro.getGoogleID());
+                                    dbHelper.addShareList(userPro.getGoogleID());
+                                }
+                            })
+                            .setNegativeButton("Reject", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, @SuppressWarnings("unused") int id) {
+                                    dbHelper.removeInvitation(userPro.getGoogleID());
+                                    dialog.cancel();
+                                }
+                            });
+                    final AlertDialog alert = builder.create();
+                    alert.show();
+                }
+
+                @Override
+                public void onCancelled(FirebaseError firebaseError) {
+
+                }
+            });
+        }
+
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
+    };
+
     private GoogleMap.OnMarkerClickListener onClickMarker = new GoogleMap.OnMarkerClickListener() {
         @Override
         public boolean onMarkerClick(final Marker marker) {
@@ -348,34 +359,20 @@ public class MapsActivity extends FragmentActivity {
             if(polyline!=null){
                 polyline.remove();
             }
-            final String name = marker.getTitle();
-            UserPosition userPos = null;
-            for (UserPosition u : userPositionList){
-                if (u.getUserPosition(name)!=null){
-                    userPos = u;
-                    break;
+            TextView tv_velocity = (TextView) findViewById(R.id.tv_Velocity);
+            String user = marker.getTitle();
+            for(UserPosition u : userPositionList){
+                if(u.getUserPosition(user)!=null){
+                    userVelocity = u.getVelocity();
                 }
             }
-            markerPoints.add(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
-            markerPoints.add(userPos.getLatLng());
-            Button btn_stopShare = (Button) findViewById(R.id.btn_stopShare);
-            btn_stopShare.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    for(UserPosition u : userPositionList){
-                        if(u.getUserPosition(name)!=null){
-                            marker.remove();
-                            break;
-                        }
-                    }
-                    dbHelper.removeSharingUser(dbHelper.getGoogleID(), name);
-                    dbHelper.removeSharingUser(name, dbHelper.getGoogleID());
-                    layout_pos.setVisibility(View.GONE);
-                    if(polyline!=null){
-                        polyline.remove();
-                    }
-                }
-            });
+            DecimalFormat df = new DecimalFormat("#.##");
+            tv_velocity.setText(df.format(userVelocity) + " m/s");
+            LatLng userLatLng = marker.getPosition();
+            if(currentLocation!=null){
+                markerPoints.add(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
+                markerPoints.add(userLatLng);
+            }
 
             if (markerPoints.size() >= 2) {
                 LatLng origin = markerPoints.get(0);
@@ -405,6 +402,7 @@ public class MapsActivity extends FragmentActivity {
                 }
             }
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lon), 16));
+            drawerLayout.closeDrawers();
         }
     };
 
@@ -423,6 +421,37 @@ public class MapsActivity extends FragmentActivity {
     };
 
     @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.drawer_menu, menu);
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+        int position = info.position;
+        String user = CommonUserList.getUserSharingList().get(position);
+        if (item.getItemId() == R.id.action_stopShare) {
+            for(UserPosition u : userPositionList){
+                if(u.getUserPosition(user)!=null){
+                    Marker m = u.getMarkers().get(0);
+                    m.remove();
+                    break;
+                }
+            }
+            dbHelper.removeSharingUser(dbHelper.getGoogleID(), user);
+            dbHelper.removeSharingUser(user, dbHelper.getGoogleID());
+            layout_pos.setVisibility(View.GONE);
+            if(polyline!=null){
+                polyline.remove();
+            }
+            drawerLayout.closeDrawers();
+        }
+        return super.onContextItemSelected(item);
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
@@ -430,6 +459,8 @@ public class MapsActivity extends FragmentActivity {
         if(polyline!=null){
             polyline.remove();
         }
+        Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
+        inviteRef.addChildEventListener(onInviteListener);
     }
 
     @Override
@@ -449,6 +480,8 @@ public class MapsActivity extends FragmentActivity {
 
     @Override
     protected void onPause() {
+        Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
+        inviteRef.removeEventListener(onInviteListener);
         super.onPause();
     }
 
@@ -568,13 +601,11 @@ public class MapsActivity extends FragmentActivity {
                 }
                 currentLocation = (Location) bundle.get(Constants.LOCATION_LOCATION);
                 velocity.onGPSUpdate(currentLocation);
-                tv_GPS.setText(df.format(velocity.getGPSVelocity()*100) + " cm/s");
             }
             if(intent.getAction().equals(Constants.SENSOR_SERVICE)){
                 long time = bundle.getLong(Constants.SENSOR_TIME);
                 float[] vals = bundle.getFloatArray(Constants.SENSOR_ACCEVALS);
                 velocity.onSensorUpdate(time, vals);
-                tv_Sensor.setText(df.format(velocity.getAccelerometerVelocity() * 100) + " cm/s");
             }
             if(currentLocation!=null) {
                 dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity());
@@ -623,18 +654,9 @@ public class MapsActivity extends FragmentActivity {
             }else{
                 holder = (ViewHolder) convertView.getTag();
             }
-            if(CommonUserList.getShareList().size()<position){
-                String user = CommonUserList.getUserSharingList().get(position);
-                UserProfile userPro = null;
-                for(UserProfile u : data){
-                    if(u.getUserProfile(user)!=null){
-                        userPro = u;
-                    }
-                }
-                holder.userPic.setImageBitmap(userPro.getProfilePic());
-                holder.googleId.setText(userPro.getDisplayName());
-
-            }
+            UserProfile userPro = data.get(position);
+            holder.userPic.setImageBitmap(userPro.getProfilePic());
+            holder.googleId.setText(userPro.getDisplayName());
             return convertView;
         }
     }

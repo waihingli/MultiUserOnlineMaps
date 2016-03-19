@@ -1,6 +1,7 @@
 package com.example.liwaihing.multiuseronlinemaps;
 
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -30,6 +31,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -58,6 +60,8 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -78,7 +82,7 @@ public class MapsActivity extends FragmentActivity {
     private DatabaseHelper dbHelper;
     private MyBroadcastReceiver myBroadcastReceiver;
     private ImageButton btn_menu, btn_share;
-    private TextView tv_Distance, tv_Duration, tv_activity;
+    private TextView tv_Distance, tv_Duration;
     private LinearLayout layout_pos, layout_addSharing;
     private double distance = 0;
     private ArrayList<LatLng> markerPoints;
@@ -98,11 +102,11 @@ public class MapsActivity extends FragmentActivity {
         intentFilter.addAction(Constants.LOCATION_SERVICE);
         intentFilter.addAction(Constants.SENSOR_SERVICE);
         this.registerReceiver(myBroadcastReceiver, intentFilter);
-        velocity = Velocity.getInstance();
         Firebase.setAndroidContext(this);
         dbHelper = new DatabaseHelper(this);
         dbHelper.stopSharing();
-        setUpMapIfNeeded();
+        velocity = Velocity.getInstance();
+        setUpDrawerLayout();
         setUpListener();
         btn_menu = (ImageButton) findViewById(R.id.btn_menu);
         btn_share = (ImageButton) findViewById(R.id.btn_share);
@@ -110,7 +114,6 @@ public class MapsActivity extends FragmentActivity {
         btn_share.setOnClickListener(onClickShare);
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
-        tv_activity = (TextView) findViewById(R.id.textView2);
         layout_pos = (LinearLayout) findViewById(R.id.layout_posDetail);
         layout_addSharing = (LinearLayout) findViewById(R.id.addSharing);
         layout_pos.setOnClickListener(new View.OnClickListener() {
@@ -127,9 +130,9 @@ public class MapsActivity extends FragmentActivity {
                 drawerLayout.closeDrawers();
             }
         });
-        setUpDrawerLayout();
         markerPoints = new ArrayList<>();
         userPositionList = new ArrayList<>();
+        setUpMapIfNeeded();
         mMap.setOnMarkerClickListener(onClickMarker);
     }
 
@@ -225,9 +228,6 @@ public class MapsActivity extends FragmentActivity {
 
             }
         });
-
-        Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
-        inviteRef.addChildEventListener(onInviteListener);
     }
 
     private ValueEventListener onSharingPosUpdateListener = new ValueEventListener() {
@@ -244,6 +244,7 @@ public class MapsActivity extends FragmentActivity {
                     u.setLatitude((double) dataSnapshot.child("Latitude").getValue());
                     u.setLongitude((double) dataSnapshot.child("Longitude").getValue());
                     u.setVelocity((double) dataSnapshot.child("Velocity").getValue());
+                    u.setActivity(dataSnapshot.child("Activity").getValue(String.class));
 
                     UserProfile uPro = null;
                     for (UserProfile p : CommonUserList.getUserProfileList()){
@@ -360,13 +361,29 @@ public class MapsActivity extends FragmentActivity {
                 polyline.remove();
             }
             TextView tv_velocity = (TextView) findViewById(R.id.tv_Velocity);
+            ImageView img_userPic = (ImageView) findViewById(R.id.img_profilePic);
+            ImageView img_activity = (ImageView) findViewById(R.id.img_activity);
             String user = marker.getTitle();
+            String activity = "";
             for(UserPosition u : userPositionList){
                 if(u.getUserPosition(user)!=null){
                     userVelocity = u.getVelocity();
+                    activity = u.getActivity();
+                }
+            }
+            UserProfile userPro = null;
+            for(UserProfile u : CommonUserList.getSharingProfileList()){
+                if(u.getUserProfile(user)!=null){
+                    userPro = u;
                 }
             }
             DecimalFormat df = new DecimalFormat("#.##");
+            img_userPic.setImageBitmap(userPro.getProfilePic());
+            if(activity.toUpperCase().equals("WALKING")){
+                img_activity.setImageResource(R.drawable.walk_icon);
+            }else if(activity.toUpperCase().equals("VEHICLE")){
+                img_activity.setImageResource(R.drawable.vehicle_icon);
+            }
             tv_velocity.setText(df.format(userVelocity) + " m/s");
             LatLng userLatLng = marker.getPosition();
             if(currentLocation!=null){
@@ -485,6 +502,29 @@ public class MapsActivity extends FragmentActivity {
         super.onPause();
     }
 
+    @Override
+    public void onBackPressed() {
+        final Dialog dialog = new Dialog(MapsActivity.this, R.style.FullHeightDialog);
+        dialog.setContentView(R.layout.layout_alert);
+        Button btn_leave = (Button) dialog.findViewById(R.id.btn_alertleave);
+        btn_leave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+                finish();
+            }
+        });
+        dialog.show();
+        return;
+    }
+
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(newBase);
+        MultiDex.install(this);
+    }
+
     private void stopService(Class c){
         Intent i = new Intent(this, c);
         stopService(i);
@@ -537,12 +577,11 @@ public class MapsActivity extends FragmentActivity {
 
     public double estimatedDuration(){
         double speed = velocity.getFinalVelocity();
-        double eDuration = 0;
-        if(speed < 1){
-            eDuration = distance/1.4;
-        }else{
-            eDuration = distance/speed;
+        if(speed<1){
+            speed = 1.4;
         }
+        double eDuration = 0;
+        eDuration = distance/(speed+userVelocity);
         return eDuration;
     }
 
@@ -593,7 +632,7 @@ public class MapsActivity extends FragmentActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             Bundle bundle = intent.getExtras();
-            DecimalFormat df = new DecimalFormat("#.###");
+
             if(intent.getAction().equals(Constants.LOCATION_SERVICE)){
                 if(currentLocation == null){
                     currentLocation = (Location) bundle.get(Constants.LOCATION_LOCATION);
@@ -608,7 +647,7 @@ public class MapsActivity extends FragmentActivity {
                 velocity.onSensorUpdate(time, vals);
             }
             if(currentLocation!=null) {
-                dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity());
+                dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity(), velocity.getActivity());
             }
         }
     }
@@ -723,9 +762,86 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
-    @Override
-    protected void attachBaseContext(Context newBase) {
-        super.attachBaseContext(newBase);
-        MultiDex.install(this);
+    private class DirectionsJSONParser {
+        private JSONObject disTimeOb;
+        private JSONObject distanceOb;
+
+        public List<List<HashMap<String,String>>> parse(JSONObject jObject){
+            List<List<HashMap<String, String>>> routes = new ArrayList<>() ;
+            JSONArray routeArray, legArray, stepArray;
+
+            try {
+                routeArray = jObject.getJSONArray("routes");
+                for(int i=0;i<routeArray.length();i++){
+                    legArray = ( (JSONObject)routeArray.get(i)).getJSONArray("legs");
+                    disTimeOb = legArray.getJSONObject(0);
+                    distanceOb = disTimeOb.getJSONObject("distance");
+                    List path = new ArrayList<>();
+                    for(int j=0;j<legArray.length();j++){
+                        stepArray = ( (JSONObject)legArray.get(j)).getJSONArray("steps");
+                        for(int k=0;k<stepArray.length();k++){
+                            String polyline = "";
+                            polyline = (String)((JSONObject)((JSONObject)stepArray.get(k)).get("polyline")).get("points");
+                            List<LatLng> list = decodePoly(polyline);
+                            for(int l=0;l<list.size();l++){
+                                HashMap<String, String> hm = new HashMap<>();
+                                hm.put("lat", Double.toString((list.get(l)).latitude));
+                                hm.put("lng", Double.toString((list.get(l)).longitude));
+                                path.add(hm);
+                            }
+                        }
+                        routes.add(path);
+                    }
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }catch (Exception e){
+            }
+
+            return routes;
+        }
+
+        public String getDistanceMeters() {
+            String s = "";
+            try {
+                s = distanceOb.getString("value");
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            return s;
+        }
+
+        private List<LatLng> decodePoly(String encoded) {
+            List<LatLng> poly = new ArrayList<>();
+            int index = 0, len = encoded.length();
+            int lat = 0, lng = 0;
+
+            while (index < len) {
+                int b, shift = 0, result = 0;
+                do{
+                    b = encoded.charAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                }while (b >= 0x20);
+                int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+                lat += dlat;
+
+                shift = 0;
+                result = 0;
+                do{
+                    b = encoded.charAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                }while (b >= 0x20);
+                int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+                lng += dlng;
+
+                LatLng p = new LatLng((((double) lat / 1E5)),
+                        (((double) lng / 1E5)));
+                poly.add(p);
+            }
+
+            return poly;
+        }
     }
 }

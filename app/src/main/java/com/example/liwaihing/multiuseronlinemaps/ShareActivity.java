@@ -8,14 +8,18 @@ import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.ContextMenu;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -26,6 +30,8 @@ import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
+
+import java.util.ArrayList;
 
 public class ShareActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
@@ -219,7 +225,6 @@ public class ShareActivity extends AppCompatActivity {
         CommonUserList.removeSharingProfileList(u);
         u.setIsSharing(false);
         listAdapter.notifyDataSetChanged();
-//        dbHelper.updateSharing(CommonUserList.getUserSharingList());
         dbHelper.removeSharingUser(dbHelper.getGoogleID(), u.getGoogleID());
         dbHelper.removeSharingUser(u.getGoogleID(), dbHelper.getGoogleID());
     }
@@ -316,13 +321,68 @@ public class ShareActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        stopService(LocationService.class);
-        stopService(SensorService.class);
         super.onDestroy();
     }
 
-    private void stopService(Class c){
-        Intent i = new Intent(this, c);
-        stopService(i);
+    public class ShareListAdapter extends BaseAdapter {
+        ArrayList<UserProfile> data;
+        LayoutInflater layoutInflater;
+
+        class ViewHolder{
+            ImageView userPic;
+            TextView googleId;
+            TextView status;
+        }
+
+        public ShareListAdapter(Context context, ArrayList<UserProfile> data){
+            this.data = data;
+            layoutInflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount() {
+            return data.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return data.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            ViewHolder holder;
+            if(convertView==null){
+                convertView=layoutInflater.inflate(R.layout.layout_sharelistitem, null);
+                holder = new ViewHolder();
+                holder.userPic = (ImageView) convertView.findViewById(R.id.img_profilePic);
+                holder.googleId = (TextView) convertView.findViewById(R.id.tv_googleid);
+                holder.status = (TextView) convertView.findViewById(R.id.tv_status);
+                convertView.setTag(holder);
+            }else{
+                holder = (ViewHolder) convertView.getTag();
+            }
+            String user = CommonUserList.getShareList().get(position);
+            UserProfile userPro = null;
+            for(UserProfile u : data){
+                if(u.getUserProfile(user)!=null){
+                    userPro = u;
+                }
+            }
+            holder.userPic.setImageBitmap(userPro.getProfilePic());
+            holder.googleId.setText(userPro.getDisplayName());
+            String status = "";
+            if(data.get(position).getIsSharing()){
+                status = "Sharing";
+            }
+            holder.status.setText(status);
+            return convertView;
+        }
     }
+
 }

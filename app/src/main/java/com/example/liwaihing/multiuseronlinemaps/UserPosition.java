@@ -13,6 +13,7 @@ public class UserPosition {
     private double latitude;
     private double longitude;
     private double velocity;
+    private String activity;
     private ArrayList<Marker> markers;
 
     protected UserPosition(String name, double lat, double lon, double v){
@@ -20,6 +21,7 @@ public class UserPosition {
         latitude = lat;
         longitude = lon;
         velocity = v;
+        activity = "Walking";
         markers = new ArrayList<>();
     }
 
@@ -60,6 +62,14 @@ public class UserPosition {
 
     public LatLng getLatLng(){
         return new LatLng(getLatitude(), getLongitude());
+    }
+
+    public void setActivity(String a){
+        activity = a;
+    }
+
+    public String getActivity(){
+        return activity;
     }
 
     public ArrayList<Marker> getMarkers(){

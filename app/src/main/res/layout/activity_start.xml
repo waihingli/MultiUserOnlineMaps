@@ -7,71 +7,96 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     android:paddingBottom="@dimen/activity_vertical_margin" tools:context=".StartActivity">
 
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/img_appIcon"
+        android:src="@drawable/app_icon"
+        android:layout_margin="50dp" />
+
     <com.google.android.gms.common.SignInButton
         android:id="@+id/btn_signIn"
+        android:visibility="gone"
+        tools:visibility="visible"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content" />
 
+    <!--<LinearLayout-->
+        <!--android:id="@+id/layout_signedIn"-->
+        <!--android:layout_width="fill_parent"-->
+        <!--android:layout_height="fill_parent"-->
+        <!--android:orientation="vertical"-->
+        <!--android:visibility="gone"-->
+        <!--tools:visibility="visible"-->
+        <!--android:layout_centerHorizontal="true"-->
+        <!--android:layout_alignParentTop="true"-->
+        <!--android:layout_alignParentBottom="true">-->
+
+        <!--<RelativeLayout-->
+            <!--android:layout_width="match_parent"-->
+            <!--android:layout_height="wrap_content">-->
+
+            <!--<de.hdodenhof.circleimageview.CircleImageView-->
+                <!--android:id="@+id/img_proPic"-->
+                <!--android:layout_width="120dp"-->
+                <!--android:layout_height="120dp" />-->
+
+            <!--<TextView-->
+                <!--android:id="@+id/tv_username"-->
+                <!--android:layout_width="wrap_content"-->
+                <!--android:layout_height="wrap_content"-->
+                <!--android:text=""-->
+                <!--android:layout_marginTop="15dp"-->
+                <!--android:layout_marginLeft="10dp"-->
+                <!--android:textColor="@android:color/black"-->
+                <!--android:layout_toRightOf="@+id/img_proPic"-->
+                <!--/>-->
+
+            <!--<TextView-->
+                <!--android:id="@+id/tv_email"-->
+                <!--android:layout_width="wrap_content"-->
+                <!--android:layout_height="wrap_content"-->
+                <!--android:text=""-->
+                <!--android:textColor="@android:color/black"-->
+                <!--android:layout_below="@+id/tv_username"-->
+                <!--android:layout_marginTop="15dp"-->
+                <!--android:layout_marginLeft="10dp"-->
+                <!--android:layout_toRightOf="@+id/img_proPic" />-->
+
+        <!--</RelativeLayout>-->
+
+        <!--<Button-->
+            <!--android:id="@+id/btn_proceed"-->
+            <!--android:layout_width="match_parent"-->
+            <!--android:layout_height="wrap_content"-->
+            <!--android:text="@string/proceed"-->
+            <!--android:layout_gravity="center_vertical" />-->
+
+    <!--</LinearLayout>-->
+
     <LinearLayout
-        android:id="@+id/layout_signedIn"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
         android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/layout_connection"
         android:visibility="gone"
         tools:visibility="visible"
-        android:layout_centerHorizontal="true"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentBottom="true">
+        android:layout_centerInParent="true">
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <de.hdodenhof.circleimageview.CircleImageView
-                android:id="@+id/img_proPic"
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:src="@android:drawable/sym_def_app_icon"
-                />
-
-            <TextView
-                android:id="@+id/tv_username"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:layout_marginTop="15dp"
-                android:layout_marginLeft="10dp"
-                android:textColor="@android:color/black"
-                android:layout_toRightOf="@+id/img_proPic"
-                />
-
-            <TextView
-                android:id="@+id/tv_email"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="@android:color/black"
-                android:layout_below="@+id/tv_username"
-                android:layout_marginTop="15dp"
-                android:layout_marginLeft="10dp"
-                android:layout_toRightOf="@+id/img_proPic" />
-
-        </RelativeLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No Network Connection"
+            android:id="@+id/tv_noConnection"
+            android:layout_gravity="center_horizontal" />
 
         <Button
-            android:id="@+id/btn_signOut"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/sign_out"
-            android:layout_gravity="center_vertical" />
-
-        <Button
-            android:id="@+id/btn_proceed"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/proceed"
-            android:layout_gravity="center_vertical" />
-
+            android:text="Retry"
+            android:id="@+id/btn_onRetry"
+            android:layout_gravity="center_horizontal"
+            android:onClick="onRetry" />
     </LinearLayout>
 
 </RelativeLayout>

@@ -2,7 +2,6 @@ package com.example.liwaihing.multiuseronlinemaps;
 
 import android.location.Location;
 
-import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -12,25 +11,21 @@ import java.util.TimerTask;
 public class Velocity {
     public static Velocity instance = null;
     private double finalVelocity;
-    private double GPSVelocity, AccelerometerVelocity, previousGPSVelocity, previousAccelerometerVelocity;
+    private double GPSVelocity, AccelerometerVelocity;
     private long newTime, lastTime;
-    private double acceleration, accuVelocity;
+    private double acceleration, accuAcceleration, accuVelocity;
     private boolean GPSAccuracy = false;
-    private int onSensorChangeCounter = 0;
+    private int counter;
     private float[] acceSensorVals = null;
-    private ArrayList<Double> consecutiveAcceleration = new ArrayList<>();
-    private double averageConsecutiveAcceleration;
-    private static float threshold;
 
     protected Velocity(){
         finalVelocity = 0;
         GPSVelocity = 0;
         AccelerometerVelocity = 0;
-        previousGPSVelocity = 0;
-        previousAccelerometerVelocity = 0;
         acceleration = 0;
+        accuAcceleration = 0;
         accuVelocity = 0;
-        averageConsecutiveAcceleration = 0;
+        counter = 0;
 
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -54,67 +49,57 @@ public class Velocity {
     }
 
     public void updateGPSVelocity(double v){
-        previousGPSVelocity = GPSVelocity;
         GPSVelocity = v;
     }
 
     public void updateAccelerometerVelocity(double v){
-        previousAccelerometerVelocity = AccelerometerVelocity;
         AccelerometerVelocity = v;
     }
 
     public void onSensorUpdate(long time, float[] vals){
         newTime = time;
         acceleration = Math.sqrt(Math.pow(vals[0], 2) + Math.pow(vals[1], 2));
-        onConsecutiveAcceleration(vals);
+        acceSensorVals = vals;
         if (newTime > lastTime){
-            accuVelocity += acceleration*(newTime-lastTime);
+            accuAcceleration += acceleration*(newTime-lastTime);
         }
     }
 
     private void updateAcceleration(){
-        if(accuVelocity != 0){
+        if(accuAcceleration != 0){
             onAverageVelocity((newTime - lastTime));
         }
         lastTime = newTime;
-        accuVelocity = 0;
+        accuAcceleration = 0;
     }
 
-    private void onConsecutiveAcceleration(float[] vals){
-        if(acceSensorVals != null){
-            double v1 = vals[0] * acceSensorVals[0] + vals[1] * acceSensorVals[1] + vals[2] * acceSensorVals[2];
-            double v2 = Math.sqrt(Math.pow(vals[0], 2) + Math.pow(vals[1], 2) + Math.pow(vals[2], 2));
-            double v3 = Math.sqrt(Math.pow(acceSensorVals[0], 2) + Math.pow(acceSensorVals[1], 2) + Math.pow(acceSensorVals[2], 2));
-            double d = v1/(v2*v3);
-            if(consecutiveAcceleration.size()>=10){
-                double average = 0;
-                double counter = 0;
-                for(int i=0;i<consecutiveAcceleration.size();i++){
-                    average += (i+1) * consecutiveAcceleration.get(i);
-                    counter += (i+1);
-                }
-                averageConsecutiveAcceleration = average/counter;
-                consecutiveAcceleration.remove(0);
-            }else{
-                consecutiveAcceleration.add(d);
-            }
+    public boolean isStep(){
+        boolean isStep = false;
+        double energy = Math.sqrt(Math.pow(acceSensorVals[0], 2) + Math.pow(acceSensorVals[1], 2) + Math.pow(acceSensorVals[2], 2));
+        if(energy>0.9 && energy<1.2)
+        {
+            isStep = true;
         }
-        acceSensorVals = vals;
+        return isStep;
     }
 
-    private String getAccelerometerActivity(){
-        String activity = "";
-        if(averageConsecutiveAcceleration>0.9 && averageConsecutiveAcceleration<1){
-            activity = "walking";
-        }else{
-            activity = "others";
+    public String getActivity(){
+        String activity = "Walking";
+        if(getFinalVelocity()-getAccelerometerVelocity()>5){
+            activity = "Vehicle";
         }
         return activity;
     }
 
     private void onAverageVelocity(double timePassed) {
-        double accumulatedVelocity = (accuVelocity/timePassed);
-        updateAccelerometerVelocity(accumulatedVelocity);
+        double a = (accuAcceleration /timePassed);
+        accuVelocity += a;
+        counter++;
+        if(counter>=5){
+            updateAccelerometerVelocity(accuVelocity/counter);
+            accuVelocity = 0;
+            counter = 0;
+        }
     }
 
     public void onGPSAccuracy(Location l){
@@ -127,7 +112,13 @@ public class Velocity {
 
     public double getFinalVelocity(){
         if(!GPSAccuracy){
-            finalVelocity = getAccelerometerVelocity();
+            if(Double.compare(getAccelerometerVelocity(), finalVelocity) > 0){
+                if(isStep()){
+                    finalVelocity = getAccelerometerVelocity();
+                }
+            } else {
+                finalVelocity = getAccelerometerVelocity();
+            }
         }else {
             finalVelocity = getGPSVelocity();
         }

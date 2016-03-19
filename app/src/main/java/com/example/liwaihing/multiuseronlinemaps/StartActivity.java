@@ -12,16 +12,17 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
-import com.firebase.client.Firebase;
+
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.SignInButton;
@@ -33,7 +34,10 @@ import com.google.android.gms.plus.model.people.Person;
 import com.google.android.gms.common.api.Status;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.List;
 
 public class StartActivity extends Activity implements GoogleApiClient.OnConnectionFailedListener, View.OnClickListener, GoogleApiClient.ConnectionCallbacks {
@@ -42,25 +46,34 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
     private GoogleApiClient googleApiClient;
     private GoogleApiAvailability googleApiAvailability;
     private SignInButton btn_SignIn;
+    private ImageView img_appIcon;
     private static final int SIGN_IN_CODE = 0;
     private static final int PROFILE_PIC_SIZE = 120;
     private ConnectionResult connectionResult;
-    private boolean isIntentInprogress;
+    private boolean isIntentInProgress;
     private boolean isSignInBtnClicked;
     private int requestCode;
     private ProgressDialog progress_dialog;
+    private boolean isNetworkConnected = false;
+    private LinearLayout connection_layout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
-        Firebase.setAndroidContext(this);
         settings = getSharedPreferences("user_auth", MODE_PRIVATE);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        setUpService();
         setUpGoogleApiClient();
         progress_dialog = new ProgressDialog(this);
-        permissionCheck();
+        btn_SignIn = (SignInButton) findViewById(R.id.btn_signIn);
+        btn_SignIn.setSize(SignInButton.SIZE_STANDARD);
+        btn_SignIn.setScopes(new Scope[]{Plus.SCOPE_PLUS_LOGIN});
+        btn_SignIn.setOnClickListener(this);
+        img_appIcon = (ImageView) findViewById(R.id.img_appIcon);
+        if (!settings.getString("googleID", "").isEmpty()){
+            findViewById(R.id.btn_signIn).setVisibility(View.GONE);
+        }
+        progress_dialog.setMessage("Signing in....");
     }
 
     private void setUpService(){
@@ -92,14 +105,19 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         }
     }
 
+    private void connectionCheck(){
+        connection_layout = (LinearLayout) findViewById(R.id.layout_connection);
+        connection_layout.setVisibility(View.GONE);
+        btn_SignIn.setVisibility(View.GONE);
+        new NetworkConnection().execute();
+    }
+
+    public void onRetry(View v){
+        connectionCheck();
+    }
+
     private void setUpGPlusLayout(){
-        btn_SignIn = (SignInButton) findViewById(R.id.btn_signIn);
-        btn_SignIn.setSize(SignInButton.SIZE_STANDARD);
-        btn_SignIn.setScopes(new Scope[]{Plus.SCOPE_PLUS_LOGIN});
-        btn_SignIn.setOnClickListener(this);
-        findViewById(R.id.btn_signOut).setOnClickListener(this);
-        findViewById(R.id.btn_proceed).setOnClickListener(this);
-        progress_dialog.setMessage("Signing in....");
+        btn_SignIn.setVisibility(View.VISIBLE);
     }
 
     private void setUpGoogleApiClient(){
@@ -123,40 +141,23 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
     private void resolveSignInError() {
         if (connectionResult.hasResolution()) {
             try {
-                isIntentInprogress = true;
+                isIntentInProgress = true;
                 connectionResult.startResolutionForResult(this, SIGN_IN_CODE);
                 Log.d("resolve error", "sign in error resolved");
             } catch (IntentSender.SendIntentException e) {
-                isIntentInprogress = false;
+                isIntentInProgress = false;
                 googleApiClient.connect();
             }
         }
     }
 
-    private void gPlusSignOut() {
-        if (googleApiClient.isConnected()) {
-            Plus.AccountApi.clearDefaultAccount(googleApiClient);
-            Plus.AccountApi.revokeAccessAndDisconnect(googleApiClient)
-                .setResultCallback(new ResultCallback<Status>() {
-                    @Override
-                    public void onResult(Status arg0) {
-                        Log.d("MainActivity", "User access revoked!");
-                        setUpGoogleApiClient();
-                        googleApiClient.connect();
-                        updateUI(false);
-                        settings.edit().clear().commit();
-                    }
-                });
-        }
-    }
-
     private void updateUI(boolean signedIn) {
         if (signedIn) {
-            findViewById(R.id.btn_signIn).setVisibility(View.GONE);
-            findViewById(R.id.layout_signedIn).setVisibility(View.VISIBLE);
+            btn_SignIn.setVisibility(View.GONE);
+            img_appIcon.setVisibility(View.VISIBLE);
         } else {
-            findViewById(R.id.btn_signIn).setVisibility(View.VISIBLE);
-            findViewById(R.id.layout_signedIn).setVisibility(View.GONE);
+            btn_SignIn.setVisibility(View.VISIBLE);
+            img_appIcon.setVisibility(View.VISIBLE);
         }
     }
 
@@ -175,10 +176,6 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         String personName = currentPerson.getDisplayName();
         String personPhotoUrl = currentPerson.getImage().getUrl();
         String email = Plus.AccountApi.getAccountName(googleApiClient);
-        TextView tv_username = (TextView) findViewById(R.id.tv_username);
-        tv_username.setText("Name: "+personName);
-        TextView tv_email = (TextView)findViewById(R.id.tv_email);
-        tv_email.setText("Email: " + email);
         setProfilePic(personPhotoUrl);
         String[] googleID = email.split("@");
         SharedPreferences.Editor editor = settings.edit();
@@ -192,8 +189,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         profilePic = profilePic.substring(0,
                 profilePic.length() - 2)
                 + PROFILE_PIC_SIZE;
-        ImageView userPic = (ImageView)findViewById(R.id.img_proPic);
-        new LoadProfilePic(userPic).execute(profilePic);
+        new LoadProfilePic().execute(profilePic);
     }
 
     @Override
@@ -201,16 +197,6 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         switch (v.getId()) {
             case R.id.btn_signIn:
                 gPlusSignIn();
-                break;
-            case R.id.btn_signOut:
-                gPlusSignOut();
-                break;
-            case R.id.btn_proceed:
-                if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                    Intent i = new Intent(this, MapsActivity.class);
-                    i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(i);
-                }
                 break;
         }
     }
@@ -221,13 +207,26 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         if (googleApiClient.isConnected()) {
             googleApiClient.connect();
         }
-        if (settings.getString("googleID", "").isEmpty()){
+        connectionCheck();
+    }
+
+    private void onStartMaps(){
+        permissionCheck();
+        if (!settings.getBoolean("signedIn", false)){
             setUpGPlusLayout();
         }else{
-            if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                Intent i = new Intent(this, MapsActivity.class);
-                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(i);
+            startFinish();
+        }
+    }
+
+    private void startFinish(){
+        if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            setUpService();
+            Intent i = new Intent(this, MapsActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            if (googleApiClient.isConnected()) {
+                googleApiClient.disconnect();
             }
         }
     }
@@ -235,7 +234,6 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
     @Override
     protected void onStart() {
         super.onStart();
-        googleApiClient.connect();
     }
 
     @Override
@@ -292,7 +290,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
             googleApiAvailability.getErrorDialog(this, result.getErrorCode(), requestCode).show();
             return;
         }
-        if (!isIntentInprogress) {
+        if (!isIntentInProgress) {
             connectionResult = result;
             if (isSignInBtnClicked) {
                 resolveSignInError();
@@ -308,20 +306,52 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
                 isSignInBtnClicked = false;
                 progress_dialog.dismiss();
             }
-            isIntentInprogress = false;
+            isIntentInProgress = false;
             if (!googleApiClient.isConnecting()) {
                 googleApiClient.connect();
             }
         }
     }
 
-    private class LoadProfilePic extends AsyncTask<String, Void, Bitmap> {
-        ImageView img_bitmap;
-
-        public LoadProfilePic(ImageView img) {
-            img_bitmap = img;
+    private class NetworkConnection extends AsyncTask<String, Void, Boolean>{
+        protected Boolean doInBackground(String... params) {
+            ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+            if (activeNetwork != null && activeNetwork.isConnected()) {
+                try {
+                    URL url = new URL("http://www.google.com/");
+                    HttpURLConnection urlc = (HttpURLConnection)url.openConnection();
+                    urlc.setRequestProperty("User-Agent", "test");
+                    urlc.setRequestProperty("Connection", "close");
+                    urlc.setConnectTimeout(1000);
+                    urlc.connect();
+                    if (urlc.getResponseCode() == 200) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return false;
+                }
+            }
+            return false;
         }
 
+        protected void onPostExecute(Boolean isConnected) {
+            if(!isConnected){
+                img_appIcon.setVisibility(View.GONE);
+                connection_layout.setVisibility(View.VISIBLE);
+            }else{
+                connection_layout.setVisibility(View.GONE);
+                img_appIcon.setVisibility(View.VISIBLE);
+                onStartMaps();
+                googleApiClient.connect();
+            }
+        }
+    }
+
+    private class LoadProfilePic extends AsyncTask<String, Void, Bitmap> {
         protected Bitmap doInBackground(String... urls) {
             String url = urls[0];
             Bitmap new_icon = null;
@@ -335,14 +365,18 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         }
 
         protected void onPostExecute(Bitmap resultImg) {
-            img_bitmap.setImageBitmap(resultImg);
             ByteArrayOutputStream baos=new  ByteArrayOutputStream();
             resultImg.compress(Bitmap.CompressFormat.PNG,100, baos);
             byte[] b=baos.toByteArray();
-            String temp=Base64.encodeToString(b, Base64.DEFAULT);
-            SharedPreferences.Editor editor = settings.edit();
-            editor.putString("profilePic", temp);
-            editor.commit();
+            if(!settings.getBoolean("signedIn", false)){
+                String temp=Base64.encodeToString(b, Base64.DEFAULT);
+                SharedPreferences.Editor editor = settings.edit();
+                editor.putString("profilePic", temp);
+                editor.putBoolean("signedIn", true);
+                editor.commit();
+                updateUI(true);
+                startFinish();
+            }
         }
     }
 }

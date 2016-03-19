@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.location.Location;
+import android.provider.ContactsContract;
 import android.util.Base64;
 
 import com.firebase.client.DataSnapshot;
@@ -25,6 +26,7 @@ public class DatabaseHelper {
     private Firebase myFireBaseRef = new Firebase(PATH);
     private SharedPreferences settings;
     private String displayname, googleID, profilePic;
+    private Bitmap profilePicture;
 
     protected DatabaseHelper(Context context){
         settings = context.getSharedPreferences("user_auth", Context.MODE_PRIVATE);
@@ -42,14 +44,19 @@ public class DatabaseHelper {
         return displayname;
     }
 
-    public Bitmap getProfilePicture(){
-        try{
-            byte[] encodeByte= Base64.decode(profilePic, Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(encodeByte, 0, encodeByte.length);
-            return bitmap;
-        }catch(Exception e){
-            e.getMessage();
-            return null;
+    public Bitmap getProfilePicture() {
+        if (profilePicture != null) {
+            return profilePicture;
+        }else{
+            try {
+                byte[] encodeByte = Base64.decode(profilePic, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(encodeByte, 0, encodeByte.length);
+                profilePicture = bitmap;
+                return bitmap;
+            } catch (Exception e) {
+                e.getMessage();
+                return null;
+            }
         }
     }
 
@@ -60,13 +67,14 @@ public class DatabaseHelper {
         profileRef.child("Picture").setValue(profilePic);
     }
 
-    public void updatePosition(Location l, double v){
+    public void updatePosition(Location l, double v, String a){
         Firebase positionRef = getUserPositionPath(googleID);
         positionRef.child("User").setValue(googleID);
         positionRef.child("Latitude").setValue(l.getLatitude());
         positionRef.child("Longitude").setValue(l.getLongitude());
         positionRef.child("Velocity").setValue(v);
         positionRef.child("TimeStamp").setValue(getTime());
+        positionRef.child("Activity").setValue(a);
     }
 
     public void updateShareList(ArrayList<String> list){
@@ -149,11 +157,6 @@ public class DatabaseHelper {
         });
     }
 
-    public void updateSharing(final ArrayList<String> list){
-        final Firebase sharingRef = getUserSharingPath(googleID);
-        sharingRef.setValue(list);
-    }
-
     public void stopSharing(){
         final Firebase sharingRef = getUserSharingPath(googleID);
         sharingRef.removeValue();
@@ -186,7 +189,7 @@ public class DatabaseHelper {
                 if (dataSnapshot.hasChildren()) {
                     for (int i = 0; i < dataSnapshot.getChildrenCount(); i++) {
                         String name = dataSnapshot.child(i + "").getValue(String.class);
-                        if(!name.isEmpty()){
+                        if(name!=null){
                             Firebase inviteRef = getUserInvitationPath(name);
                             inviteRef.child(googleID).removeValue();
                         }

@@ -71,8 +71,7 @@
                             android:id="@+id/tv_Velocity" />
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:orientation="horizontal"
+                    <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content">
 
@@ -90,11 +89,17 @@
                             android:text=""
                             android:id="@+id/tv_duration"
                             android:layout_marginLeft="30dp" />
-                    </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:id="@+id/img_activity"
+                            android:layout_alignParentRight="true"
+                            android:layout_marginRight="20dp" />
+
+                    </RelativeLayout>
                 </LinearLayout>
-
             </LinearLayout>
-
         </RelativeLayout>
     </LinearLayout>
 

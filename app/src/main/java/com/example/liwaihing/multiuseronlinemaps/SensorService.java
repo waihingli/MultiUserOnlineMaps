@@ -20,6 +20,7 @@ public class SensorService  extends Service implements SensorEventListener {
     Intent intent;
     FilterHelper filterHelper;
     protected float[] acceSensorVals;
+    private float currentX = 0, previousX = 0;
 
     @Override
     public void onCreate() {
@@ -30,9 +31,10 @@ public class SensorService  extends Service implements SensorEventListener {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-
+        if (sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)!=null) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        }
         filterHelper = new FilterHelper();
         return super.onStartCommand(intent, flags, startId);
     }
@@ -51,12 +53,12 @@ public class SensorService  extends Service implements SensorEventListener {
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
             acceSensorVals = filterHelper.lowPass(event.values.clone(), acceSensorVals);
+            Intent i = new Intent();
+            i.putExtra(Constants.SENSOR_TIME, System.currentTimeMillis());
+            i.putExtra(Constants.SENSOR_ACCEVALS, acceSensorVals);
+            i.setAction(Constants.SENSOR_SERVICE);
+            sendBroadcast(i);
         }
-        Intent i = new Intent();
-        i.putExtra(Constants.SENSOR_TIME, System.currentTimeMillis());
-        i.putExtra(Constants.SENSOR_ACCEVALS, acceSensorVals);
-        i.setAction(Constants.SENSOR_SERVICE);
-        sendBroadcast(i);
     }
 
     @Override

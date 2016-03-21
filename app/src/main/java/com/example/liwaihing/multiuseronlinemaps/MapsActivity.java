@@ -2,13 +2,11 @@ package com.example.liwaihing.multiuseronlinemaps;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -18,9 +16,7 @@ import android.os.AsyncTask;
 import android.support.multidex.MultiDex;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.DrawerLayout;
-import android.util.Log;
 import android.view.ContextMenu;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -31,7 +27,6 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -44,12 +39,6 @@ import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.Status;
-import com.google.android.gms.location.ActivityRecognition;
-import com.google.android.gms.location.DetectedActivity;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -70,7 +59,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -153,82 +141,85 @@ public class MapsActivity extends FragmentActivity {
 
     private void setUpListener(){
         Firebase sharingRef = dbHelper.getUserSharingPath(dbHelper.getGoogleID());
-        sharingRef.addChildEventListener(new ChildEventListener() {
-            @Override
-            public synchronized void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                String user = dataSnapshot.getValue(String.class);
-                boolean isUserSharing = false;
-                for(String name : CommonUserList.getUserSharingList()){
-                    if (name.equals(user)){
-                        isUserSharing = true;
+        sharingRef.addChildEventListener(onSharingUserUpdateListener);
+    }
+
+    private ChildEventListener onSharingUserUpdateListener = new ChildEventListener() {
+        @Override
+        public synchronized void onChildAdded(DataSnapshot dataSnapshot, String s) {
+            String user = dataSnapshot.getValue(String.class);
+            boolean isUserSharing = false;
+            for(String name : CommonUserList.getUserSharingList()){
+                if (name.equals(user)){
+                    isUserSharing = true;
+                    break;
+                }
+            }
+
+            if(!isUserSharing){
+                CommonUserList.addUserSharingList(user);
+                double lat = 0, lon = 0, v = 0;
+                UserPosition userPos = new UserPosition(user, lat, lon, v);
+                userPositionList.add(userPos);
+                for(UserProfile up : CommonUserList.getUserProfileList()){
+                    if(up.getUserProfile(user)!=null){
+                        up.setIsSharing(true);
+                        CommonUserList.addSharingProfileList(up);
                         break;
                     }
                 }
+                Firebase updatePosRef = dbHelper.getUserPositionPath(userPos.getUsername());
+                updatePosRef.addValueEventListener(onSharingPosUpdateListener);
+                listAdapter.notifyDataSetChanged();
+            }
+        }
 
-                if(!isUserSharing){
-                    CommonUserList.addUserSharingList(user);
-                    double lat = 0, lon = 0, v = 0;
-                    UserPosition userPos = new UserPosition(user, lat, lon, v);
-                    userPositionList.add(userPos);
-                    for(UserProfile up : CommonUserList.getUserProfileList()){
-                        if(up.getUserProfile(user)!=null){
-                            up.setIsSharing(true);
-                            CommonUserList.addSharingProfileList(up);
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public synchronized void onChildRemoved(DataSnapshot dataSnapshot) {
+            String name = dataSnapshot.getValue(String.class);
+            for(UserProfile up : CommonUserList.getUserProfileList()){
+                if(up.getUserProfile(name)!=null){
+                    up.setIsSharing(false);
+                    CommonUserList.removeSharingProfileList(up);
+                    CommonUserList.removeUserSharingList(up.getGoogleID());
+                    for(UserPosition u : userPositionList) {
+                        if (u.getUserPosition(name) != null) {
+                            if (u.getMarkers().size() > 0) {
+                                Marker m = u.getMarkers().get(0);
+                                m.remove();
+                            }
+                            layout_pos.setVisibility(View.GONE);
+                            if (polyline != null) {
+                                polyline.remove();
+                            }
+                            userPositionList.remove(u);
+
+                            Firebase updatePosRef = dbHelper.getUserPositionPath(name);
+                            updatePosRef.removeEventListener(onSharingPosUpdateListener);
+                            listAdapter.notifyDataSetChanged();
                             break;
                         }
                     }
-                    Firebase updatePosRef = dbHelper.getUserPositionPath(userPos.getUsername());
-                    updatePosRef.addValueEventListener(onSharingPosUpdateListener);
-                    listAdapter.notifyDataSetChanged();
+                    break;
                 }
             }
+        }
 
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
 
-            }
+        }
 
-            @Override
-            public synchronized void onChildRemoved(DataSnapshot dataSnapshot) {
-                String name = dataSnapshot.getValue(String.class);
-                for(UserPosition u : userPositionList){
-                    if(u.getUserPosition(name)!=null){
-                        if(u.getMarkers().size()>0){
-                            Marker m = u.getMarkers().get(0);
-                            m.remove();
-                        }
-                        layout_pos.setVisibility(View.GONE);
-                        if(polyline!=null){
-                            polyline.remove();
-                        }
-                        for(UserProfile up : CommonUserList.getUserProfileList()){
-                            if(up.getUserProfile(name)!=null){
-                                up.setIsSharing(false);
-                                CommonUserList.removeSharingProfileList(up);
-                                break;
-                            }
-                        }
-                        userPositionList.remove(u);
-                        CommonUserList.removeUserSharingList(u.getUsername());
-                        Firebase updatePosRef = dbHelper.getUserPositionPath(name);
-                        updatePosRef.removeEventListener(onSharingPosUpdateListener);
-                        listAdapter.notifyDataSetChanged();
-                        break;
-                    }
-                }
-            }
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
 
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-
-            }
-        });
-    }
+        }
+    };
 
     private ValueEventListener onSharingPosUpdateListener = new ValueEventListener() {
         @Override
@@ -467,6 +458,13 @@ public class MapsActivity extends FragmentActivity {
         return super.onContextItemSelected(item);
     }
 
+    public void initiateCommonList(){
+        CommonUserList.getSharingProfileList().clear();
+        CommonUserList.getUserSharingList().clear();
+        CommonUserList.getShareList().clear();
+        CommonUserList.getUserProfileList().clear();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -484,8 +482,15 @@ public class MapsActivity extends FragmentActivity {
         stopService(LocationService.class);
         stopService(SensorService.class);
         this.unregisterReceiver(myBroadcastReceiver);
+        Firebase sharingRef = dbHelper.getUserSharingPath(dbHelper.getGoogleID());
+        sharingRef.removeEventListener(onSharingUserUpdateListener);
         dbHelper.removeAllRequest();
         dbHelper.stopSharing();
+        for(UserProfile u : CommonUserList.getUserProfileList()){
+            u.setIsSharing(false);
+        }
+        CommonUserList.getUserSharingList().clear();
+        CommonUserList.getSharingProfileList().clear();
         super.onDestroy();
     }
 
@@ -516,7 +521,6 @@ public class MapsActivity extends FragmentActivity {
         dialog.show();
         return;
     }
-
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -579,7 +583,7 @@ public class MapsActivity extends FragmentActivity {
         if(speed<1){
             speed = 1.4;
         }
-        double eDuration = 0;
+        double eDuration;
         eDuration = distance/(speed+userVelocity);
         return eDuration;
     }
@@ -618,11 +622,10 @@ public class MapsActivity extends FragmentActivity {
             }
             data = stringBuffer.toString();
             bufferedReader.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
             inputStream.close();
             urlConnection.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return data;
     }
@@ -742,7 +745,7 @@ public class MapsActivity extends FragmentActivity {
             PolylineOptions lineOptions = null;
 
             for (int i = 0; i < result.size(); i++) {
-                points = new ArrayList<LatLng>();
+                points = new ArrayList<>();
                 lineOptions = new PolylineOptions();
                 List<HashMap<String, String>> path = result.get(i);
                 for (int j = 0; j < path.size(); j++) {
@@ -779,7 +782,7 @@ public class MapsActivity extends FragmentActivity {
                     for(int j=0;j<legArray.length();j++){
                         stepArray = ( (JSONObject)legArray.get(j)).getJSONArray("steps");
                         for(int k=0;k<stepArray.length();k++){
-                            String polyline = "";
+                            String polyline;
                             polyline = (String)((JSONObject)((JSONObject)stepArray.get(k)).get("polyline")).get("points");
                             List<LatLng> list = decodePoly(polyline);
                             for(int l=0;l<list.size();l++){
@@ -792,9 +795,8 @@ public class MapsActivity extends FragmentActivity {
                         routes.add(path);
                     }
                 }
-            } catch (JSONException e) {
-                e.printStackTrace();
             }catch (Exception e){
+                e.printStackTrace();
             }
 
             return routes;

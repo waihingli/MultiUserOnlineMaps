@@ -1,6 +1,5 @@
 <android.support.v4.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -34,8 +33,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/layout_posDetail"
-                android:background="@color/posdetail_bg">
-                <!--android:visibility="gone">-->
+                android:background="@color/posdetail_bg"
+                tools:visibility="visible"
+                android:visibility="gone">
 
                 <de.hdodenhof.circleimageview.CircleImageView
                     android:id="@+id/img_profilePic"
@@ -60,15 +60,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textAppearance="?android:attr/textAppearanceLarge"
-                            android:text="Speed: "
-                            android:id="@+id/textView4" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textAppearance="?android:attr/textAppearanceLarge"
                             android:text=""
-                            android:id="@+id/tv_Velocity" />
+                            android:id="@+id/tv_user" />
                     </LinearLayout>
 
                     <RelativeLayout
@@ -88,6 +81,7 @@
                             android:textAppearance="?android:attr/textAppearanceLarge"
                             android:text=""
                             android:id="@+id/tv_duration"
+                            android:layout_toRightOf="@+id/tv_distance"
                             android:layout_marginLeft="30dp" />
 
                         <ImageView

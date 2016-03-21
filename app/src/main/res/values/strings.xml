@@ -1,23 +1,7 @@
 <resources>
-    <string name="app_name">MultiUserOnlineMaps</string>
+    <string name="app_name">Multi-User Online Map</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_maps">Map</string>
     <string name="title_activity_login">LoginActivity</string>
     <string name="title_activity_share">ShareActivity</string>
-    <string name="sign_out">Sign Out</string>
-    <string name="proceed">Start Map</string>
-
-    <string name="WALKING">Walking</string>
-    <string name="WALKING_UPSTAIRS">Upstairs</string>
-    <string name="WALKING_DOWNSTAIRS">Downstairs</string>
-    <string name="SITTING">Sitting</string>
-    <string name="STANDING">Standing</string>
-    <string name="LAYING">Laying</string>
-    <string name="STAND_TO_SIT">Stand to sit</string>
-    <string name="SIT_TO_STAND">Sit to Stand</string>
-    <string name="SIT_TO_LIE">Sit to lie</string>
-    <string name="LIE_TO_SIT">Lie to sit</string>
-    <string name="STAND_TO_LIE">Stand to lie</string>
-    <string name="LIE_TO_STAND">Lie to stand</string>
-    <string name="OTHERS">Others</string>
 </resources>

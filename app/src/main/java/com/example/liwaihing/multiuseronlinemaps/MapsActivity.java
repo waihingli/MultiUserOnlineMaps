@@ -106,6 +106,7 @@ public class MapsActivity extends FragmentActivity {
         dbHelper = new DatabaseHelper(this);
         dbHelper.stopSharing();
         velocity = Velocity.getInstance();
+        setUpMapIfNeeded();
         setUpDrawerLayout();
         setUpListener();
         btn_menu = (ImageButton) findViewById(R.id.btn_menu);
@@ -115,7 +116,6 @@ public class MapsActivity extends FragmentActivity {
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
         layout_pos = (LinearLayout) findViewById(R.id.layout_posDetail);
-        layout_addSharing = (LinearLayout) findViewById(R.id.addSharing);
         layout_pos.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -123,16 +123,8 @@ public class MapsActivity extends FragmentActivity {
                 polyline.remove();
             }
         });
-        layout_addSharing.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(ShareActivity.class);
-                drawerLayout.closeDrawers();
-            }
-        });
         markerPoints = new ArrayList<>();
         userPositionList = new ArrayList<>();
-        setUpMapIfNeeded();
         mMap.setOnMarkerClickListener(onClickMarker);
     }
 
@@ -142,6 +134,14 @@ public class MapsActivity extends FragmentActivity {
         listAdapter = new DrawerListAdapter(this, CommonUserList.getSharingProfileList());
         drawerList.setAdapter(listAdapter);
         drawerList.setOnItemClickListener(onListItemClickListener);
+        layout_addSharing = (LinearLayout) findViewById(R.id.addSharing);
+        layout_addSharing.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(ShareActivity.class);
+                drawerLayout.closeDrawers();
+            }
+        });
         TextView tv_name = (TextView) findViewById(R.id.userName);
         TextView tv_googleid = (TextView) findViewById(R.id.googleID);
         ImageView img_pic = (ImageView) findViewById(R.id.profilePicture);
@@ -360,7 +360,7 @@ public class MapsActivity extends FragmentActivity {
             if(polyline!=null){
                 polyline.remove();
             }
-            TextView tv_velocity = (TextView) findViewById(R.id.tv_Velocity);
+            TextView tv_user = (TextView) findViewById(R.id.tv_user);
             ImageView img_userPic = (ImageView) findViewById(R.id.img_profilePic);
             ImageView img_activity = (ImageView) findViewById(R.id.img_activity);
             String user = marker.getTitle();
@@ -377,14 +377,13 @@ public class MapsActivity extends FragmentActivity {
                     userPro = u;
                 }
             }
-            DecimalFormat df = new DecimalFormat("#.##");
             img_userPic.setImageBitmap(userPro.getProfilePic());
+            tv_user.setText(userPro.getDisplayName());
             if(activity.toUpperCase().equals("WALKING")){
                 img_activity.setImageResource(R.drawable.walk_icon);
             }else if(activity.toUpperCase().equals("VEHICLE")){
                 img_activity.setImageResource(R.drawable.vehicle_icon);
             }
-            tv_velocity.setText(df.format(userVelocity) + " m/s");
             LatLng userLatLng = marker.getPosition();
             if(currentLocation!=null){
                 markerPoints.add(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));

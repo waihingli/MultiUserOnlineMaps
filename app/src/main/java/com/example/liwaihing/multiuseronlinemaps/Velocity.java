@@ -76,7 +76,7 @@ public class Velocity {
     public boolean isStep(){
         boolean isStep = false;
         double energy = Math.sqrt(Math.pow(acceSensorVals[0], 2) + Math.pow(acceSensorVals[1], 2) + Math.pow(acceSensorVals[2], 2));
-        if(energy>0.9 && energy<1.2)
+        if(energy>0.8 && energy<1.2)
         {
             isStep = true;
         }
@@ -96,7 +96,14 @@ public class Velocity {
         accuVelocity += a;
         counter++;
         if(counter>=5){
-            updateAccelerometerVelocity(accuVelocity/counter);
+            double averageV = accuVelocity/counter;
+            if(!isStep()){
+                if(Double.compare(finalVelocity, averageV)>0){
+                    updateAccelerometerVelocity(averageV);
+                }
+            }else{
+                updateAccelerometerVelocity(averageV);
+            }
             accuVelocity = 0;
             counter = 0;
         }
@@ -112,13 +119,7 @@ public class Velocity {
 
     public double getFinalVelocity(){
         if(!GPSAccuracy){
-            if(Double.compare(getAccelerometerVelocity(), finalVelocity) > 0){
-                if(isStep()){
-                    finalVelocity = getAccelerometerVelocity();
-                }
-            } else {
-                finalVelocity = getAccelerometerVelocity();
-            }
+            finalVelocity = getAccelerometerVelocity();
         }else {
             finalVelocity = getGPSVelocity();
         }

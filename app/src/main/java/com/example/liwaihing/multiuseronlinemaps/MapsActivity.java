@@ -59,6 +59,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -70,7 +71,7 @@ public class MapsActivity extends FragmentActivity {
     private DatabaseHelper dbHelper;
     private MyBroadcastReceiver myBroadcastReceiver;
     private ImageButton btn_menu, btn_share;
-    private TextView tv_Distance, tv_Duration;
+    private TextView tv_Distance, tv_Duration, tv;
     private LinearLayout layout_pos, layout_addSharing;
     private double distance = 0;
     private ArrayList<LatLng> markerPoints;
@@ -103,6 +104,7 @@ public class MapsActivity extends FragmentActivity {
         btn_share.setOnClickListener(onClickShare);
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
+        tv = (TextView) findViewById(R.id.textView);
         layout_pos = (LinearLayout) findViewById(R.id.layout_posDetail);
         layout_pos.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -647,6 +649,8 @@ public class MapsActivity extends FragmentActivity {
                 long time = bundle.getLong(Constants.SENSOR_TIME);
                 float[] vals = bundle.getFloatArray(Constants.SENSOR_ACCEVALS);
                 velocity.onSensorUpdate(time, vals);
+                DecimalFormat df = new DecimalFormat("#.##");
+                tv.setText(df.format(velocity.getFinalVelocity())+"\n"+df.format(velocity.getAccelerometerVelocity()));
             }
             if(currentLocation!=null) {
                 dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity(), velocity.getActivity());

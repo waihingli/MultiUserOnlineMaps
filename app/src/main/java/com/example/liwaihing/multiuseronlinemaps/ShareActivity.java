@@ -367,13 +367,7 @@ public class ShareActivity extends AppCompatActivity {
             }else{
                 holder = (ViewHolder) convertView.getTag();
             }
-            String user = CommonUserList.getShareList().get(position);
-            UserProfile userPro = null;
-            for(UserProfile u : data){
-                if(u.getUserProfile(user)!=null){
-                    userPro = u;
-                }
-            }
+            UserProfile userPro = data.get(position);
             holder.userPic.setImageBitmap(userPro.getProfilePic());
             holder.googleId.setText(userPro.getDisplayName());
             String status = "";

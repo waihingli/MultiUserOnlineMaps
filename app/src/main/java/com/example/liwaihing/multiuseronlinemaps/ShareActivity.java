@@ -37,7 +37,6 @@ public class ShareActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private ListView lv_shareList;
     private ShareListAdapter listAdapter;
-//    Context c;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

@@ -176,19 +176,16 @@ public class MapsActivity extends FragmentActivity {
             }
         }
 
-        @Override
+        @Override //if user is not the last in list
         public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-        }
-
-        @Override
-        public synchronized void onChildRemoved(DataSnapshot dataSnapshot) {
-            String name = dataSnapshot.getValue(String.class);
+            int position = Integer.parseInt(dataSnapshot.getKey());
+            String name = CommonUserList.getShareList().get(position);
             for(UserProfile up : CommonUserList.getUserProfileList()){
                 if(up.getUserProfile(name)!=null){
                     up.setIsSharing(false);
                     CommonUserList.removeSharingProfileList(up);
                     CommonUserList.removeUserSharingList(up.getGoogleID());
+                    listAdapter.notifyDataSetChanged();
                     for(UserPosition u : userPositionList) {
                         if (u.getUserPosition(name) != null) {
                             if (u.getMarkers().size() > 0) {
@@ -203,13 +200,63 @@ public class MapsActivity extends FragmentActivity {
 
                             Firebase updatePosRef = dbHelper.getUserPositionPath(name);
                             updatePosRef.removeEventListener(onSharingPosUpdateListener);
-                            listAdapter.notifyDataSetChanged();
                             break;
                         }
                     }
                     break;
                 }
             }
+        }
+
+        @Override //check whether change in priority or remove
+        public synchronized void onChildRemoved(DataSnapshot dataSnapshot) {
+            final String name = dataSnapshot.getValue(String.class);
+            Firebase sharingRef = dbHelper.getUserSharingPath(dbHelper.getGoogleID());
+            sharingRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot ds) {
+                    boolean isRemoved = true;
+                    for(DataSnapshot d : ds.getChildren()) {
+                        if (d.getValue().equals(name)) {
+                            isRemoved = false;
+                            break;
+                        }
+                    }
+                    if(isRemoved){
+                        for(UserProfile up : CommonUserList.getUserProfileList()){
+                            if(up.getUserProfile(name)!=null) {
+                                up.setIsSharing(false);
+                                CommonUserList.removeSharingProfileList(up);
+                                CommonUserList.removeUserSharingList(up.getGoogleID());
+                                listAdapter.notifyDataSetChanged();
+                                for (UserPosition u : userPositionList) {
+                                    if (u.getUserPosition(name) != null) {
+                                        if (u.getMarkers().size() > 0) {
+                                            Marker m = u.getMarkers().get(0);
+                                            m.remove();
+                                        }
+                                        layout_pos.setVisibility(View.GONE);
+                                        if (polyline != null) {
+                                            polyline.remove();
+                                        }
+                                        userPositionList.remove(u);
+
+                                        Firebase updatePosRef = dbHelper.getUserPositionPath(name);
+                                        updatePosRef.removeEventListener(onSharingPosUpdateListener);
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                @Override
+                public void onCancelled(FirebaseError firebaseError) {
+
+                }
+            });
         }
 
         @Override
@@ -358,6 +405,7 @@ public class MapsActivity extends FragmentActivity {
             ImageView img_activity = (ImageView) findViewById(R.id.img_activity);
             String user = marker.getTitle();
             String activity = "";
+            int activityMode = 0;
             for(UserPosition u : userPositionList){
                 if(u.getUserPosition(user)!=null){
                     userVelocity = u.getVelocity();
@@ -374,8 +422,10 @@ public class MapsActivity extends FragmentActivity {
             tv_user.setText(userPro.getDisplayName());
             if(activity.toUpperCase().equals("WALKING")){
                 img_activity.setImageResource(R.drawable.walk_icon);
+                activityMode = 1;
             }else if(activity.toUpperCase().equals("VEHICLE")){
                 img_activity.setImageResource(R.drawable.vehicle_icon);
+                activityMode = 2;
             }
             LatLng userLatLng = marker.getPosition();
             if(currentLocation!=null){
@@ -386,7 +436,7 @@ public class MapsActivity extends FragmentActivity {
             if (markerPoints.size() >= 2) {
                 LatLng origin = markerPoints.get(0);
                 LatLng dest = markerPoints.get(1);
-                String url = getDirectionsUrl(origin, dest);
+                String url = getDirectionsUrl(origin, dest, activityMode);
                 DownloadTask downloadTask = new DownloadTask();
                 downloadTask.execute(url);
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(dest, 16));
@@ -458,13 +508,6 @@ public class MapsActivity extends FragmentActivity {
             drawerLayout.closeDrawers();
         }
         return super.onContextItemSelected(item);
-    }
-
-    public void initiateCommonList(){
-        CommonUserList.getSharingProfileList().clear();
-        CommonUserList.getUserSharingList().clear();
-        CommonUserList.getShareList().clear();
-        CommonUserList.getUserProfileList().clear();
     }
 
     @Override
@@ -567,7 +610,7 @@ public class MapsActivity extends FragmentActivity {
     public String durationUnitConverter(double dura){
         String s = "";
         if (dura > 3600){
-            s = (int)dura/3600 + " hour" + (int)Math.ceil((dura%3600)/60) + " min";
+            s = (int)dura/3600 + " hour " + (int)Math.ceil((dura%3600)/60) + " min";
         }else{
             s = (int)Math.ceil(dura/60) + " min";
         }
@@ -595,11 +638,16 @@ public class MapsActivity extends FragmentActivity {
         startActivity(i);
     }
 
-    private String getDirectionsUrl(LatLng origin, LatLng dest) {
+    private String getDirectionsUrl(LatLng origin, LatLng dest, int activityMode) {
         String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
         String str_dest = "destination=" + dest.latitude + "," + dest.longitude;
         String sensor = "sensor=false";
-        String mode = "mode=walking";
+        String mode = "mode=";
+        if(activityMode == 2 || velocity.getActivity().toUpperCase().equals("VEHICLE")){
+            mode += "driving";
+        }else{
+            mode += "walking";
+        }
         String parameters = str_origin + "&" + str_dest + "&" + sensor + "&" + mode;
         String output = "json";
         String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters;
@@ -636,7 +684,6 @@ public class MapsActivity extends FragmentActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             Bundle bundle = intent.getExtras();
-
             if(intent.getAction().equals(Constants.LOCATION_SERVICE)){
                 if(currentLocation == null){
                     currentLocation = (Location) bundle.get(Constants.LOCATION_LOCATION);

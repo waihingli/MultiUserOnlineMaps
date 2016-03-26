@@ -82,14 +82,14 @@
                             android:text=""
                             android:id="@+id/tv_duration"
                             android:layout_toRightOf="@+id/tv_distance"
-                            android:layout_marginLeft="30dp" />
+                            android:layout_marginLeft="20dp" />
 
                         <ImageView
                             android:layout_width="30dp"
                             android:layout_height="30dp"
                             android:id="@+id/img_activity"
                             android:layout_alignParentRight="true"
-                            android:layout_marginRight="20dp" />
+                            android:layout_marginRight="15dp" />
 
                     </RelativeLayout>
                 </LinearLayout>

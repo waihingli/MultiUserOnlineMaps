@@ -54,7 +54,6 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
     private boolean isSignInBtnClicked;
     private int requestCode;
     private ProgressDialog progress_dialog;
-    private boolean isNetworkConnected = false;
     private LinearLayout connection_layout;
 
     @Override

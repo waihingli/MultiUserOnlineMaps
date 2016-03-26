@@ -7,7 +7,6 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.IBinder;
-import android.widget.Toast;
 
 /**
  * Created by WaiHing on 21/2/2016.
@@ -18,9 +17,8 @@ public class SensorService  extends Service implements SensorEventListener {
     public SensorManager sensorManager;
     public Sensor accelerometer;
     Intent intent;
-    FilterHelper filterHelper;
+    Filter filter;
     protected float[] acceSensorVals;
-    private float currentX = 0, previousX = 0;
 
     @Override
     public void onCreate() {
@@ -35,7 +33,7 @@ public class SensorService  extends Service implements SensorEventListener {
             accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
             sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         }
-        filterHelper = new FilterHelper();
+        filter = new Filter();
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -52,7 +50,7 @@ public class SensorService  extends Service implements SensorEventListener {
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
-            acceSensorVals = filterHelper.lowPass(event.values.clone(), acceSensorVals);
+            acceSensorVals = filter.lowPass(event.values.clone(), acceSensorVals);
             Intent i = new Intent();
             i.putExtra(Constants.SENSOR_TIME, System.currentTimeMillis());
             i.putExtra(Constants.SENSOR_ACCEVALS, acceSensorVals);
@@ -64,5 +62,20 @@ public class SensorService  extends Service implements SensorEventListener {
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
 
+    }
+
+    public class Filter {
+        private static final float ALPHA = 0.15f;
+
+        protected Filter(){}
+
+        protected float[] lowPass(float[] input, float[] output){
+            if (output == null)
+                return input;
+            for (int i=0; i<input.length; i++){
+                output[i] = output[i] + ALPHA * (input[i] - output[i]);
+            }
+            return output;
+        }
     }
 }

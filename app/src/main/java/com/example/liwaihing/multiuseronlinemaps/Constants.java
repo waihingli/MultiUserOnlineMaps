@@ -7,9 +7,7 @@ public class Constants {
     public static final String PACKAGE_NAME = "com.example.liwaihing.multiuseronlinemaps";
     public static final String LOCATION_SERVICE = "android.intent.action.locationChange";
     public static final String SENSOR_SERVICE = "android.intent.action.sensorChange";
-    public static final String ACTIVITY_SERVICE = "android.intent.action.activityChange";
     public static final String LOCATION_LOCATION = "location";
     public static final String SENSOR_TIME = "time";
     public static final String SENSOR_ACCEVALS = "accevals";
-    public static final String SENSOR_STEPDETECTOR = "stepdetector";
 }

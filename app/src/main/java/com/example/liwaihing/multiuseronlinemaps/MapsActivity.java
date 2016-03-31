@@ -100,6 +100,7 @@ public class MapsActivity extends FragmentActivity {
         setUpListener();
         btn_menu = (ImageButton) findViewById(R.id.btn_menu);
         btn_share = (ImageButton) findViewById(R.id.btn_share);
+        btn_share.setVisibility(View.GONE);
         btn_menu.setOnClickListener(onClickMenu);
         btn_share.setOnClickListener(onClickShare);
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
@@ -125,6 +126,7 @@ public class MapsActivity extends FragmentActivity {
         drawerList.setAdapter(listAdapter);
         drawerList.setOnItemClickListener(onListItemClickListener);
         layout_addSharing = (LinearLayout) findViewById(R.id.addSharing);
+        layout_addSharing.setVisibility(View.GONE);
         layout_addSharing.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -178,32 +180,34 @@ public class MapsActivity extends FragmentActivity {
 
         @Override //if user is not the last in list
         public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-            int position = Integer.parseInt(dataSnapshot.getKey());
-            String name = CommonUserList.getShareList().get(position);
-            for(UserProfile up : CommonUserList.getUserProfileList()){
-                if(up.getUserProfile(name)!=null){
-                    up.setIsSharing(false);
-                    CommonUserList.removeSharingProfileList(up);
-                    CommonUserList.removeUserSharingList(up.getGoogleID());
-                    listAdapter.notifyDataSetChanged();
-                    for(UserPosition u : userPositionList) {
-                        if (u.getUserPosition(name) != null) {
-                            if (u.getMarkers().size() > 0) {
-                                Marker m = u.getMarkers().get(0);
-                                m.remove();
-                            }
-                            layout_pos.setVisibility(View.GONE);
-                            if (polyline != null) {
-                                polyline.remove();
-                            }
-                            userPositionList.remove(u);
+            if(dataSnapshot.getKey()!=null){
+                int position = Integer.parseInt(dataSnapshot.getKey());
+                String name = CommonUserList.getShareList().get(position);
+                for(UserProfile up : CommonUserList.getUserProfileList()){
+                    if(up.getUserProfile(name)!=null){
+                        up.setIsSharing(false);
+                        CommonUserList.removeSharingProfileList(up);
+                        CommonUserList.removeUserSharingList(up.getGoogleID());
+                        listAdapter.notifyDataSetChanged();
+                        for(UserPosition u : userPositionList) {
+                            if (u.getUserPosition(name) != null) {
+                                if (u.getMarkers().size() > 0) {
+                                    Marker m = u.getMarkers().get(0);
+                                    m.remove();
+                                }
+                                layout_pos.setVisibility(View.GONE);
+                                if (polyline != null) {
+                                    polyline.remove();
+                                }
+                                userPositionList.remove(u);
 
-                            Firebase updatePosRef = dbHelper.getUserPositionPath(name);
-                            updatePosRef.removeEventListener(onSharingPosUpdateListener);
-                            break;
+                                Firebase updatePosRef = dbHelper.getUserPositionPath(name);
+                                updatePosRef.removeEventListener(onSharingPosUpdateListener);
+                                break;
+                            }
                         }
+                        break;
                     }
-                    break;
                 }
             }
         }
@@ -278,7 +282,7 @@ public class MapsActivity extends FragmentActivity {
                 if(u.getUserPosition(name)!=null){
                     if(u.getMarkers().size()>0){
                         Marker old = u.getMarkers().get(0);
-                        old.remove();
+                        old.remove();                                   //remove current position marker
                         u.setMarkers(new ArrayList<Marker>());
                     }
                     u.setLatitude((double) dataSnapshot.child("Latitude").getValue());
@@ -308,7 +312,7 @@ public class MapsActivity extends FragmentActivity {
 
                     Marker m = mMap.addMarker(options);
                     m.setPosition(u.getLatLng());
-                    u.addMarkers(m);
+                    u.addMarkers(m);                            //save current marker to UserPosition
                 }
             }
         }
@@ -438,7 +442,7 @@ public class MapsActivity extends FragmentActivity {
                 LatLng dest = markerPoints.get(1);
                 String url = getDirectionsUrl(origin, dest, activityMode);
                 DownloadTask downloadTask = new DownloadTask();
-                downloadTask.execute(url);
+                downloadTask.execute(url);                  //call Google Direction API for location data
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(dest, 16));
                 markerPoints.clear();
             }
@@ -499,7 +503,7 @@ public class MapsActivity extends FragmentActivity {
                     break;
                 }
             }
-            dbHelper.removeSharingUser(dbHelper.getGoogleID(), user);
+            dbHelper.removeSharingUser(dbHelper.getGoogleID(), user);           //remove user from sharing in both users' side
             dbHelper.removeSharingUser(user, dbHelper.getGoogleID());
             layout_pos.setVisibility(View.GONE);
             if(polyline!=null){
@@ -518,6 +522,7 @@ public class MapsActivity extends FragmentActivity {
         if(polyline!=null){
             polyline.remove();
         }
+
         Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
         inviteRef.addChildEventListener(onInviteListener);
     }
@@ -547,7 +552,7 @@ public class MapsActivity extends FragmentActivity {
     @Override
     protected void onPause() {
         Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
-        inviteRef.removeEventListener(onInviteListener);
+        inviteRef.removeEventListener(onInviteListener);                    //show invite dialog only in active window
         super.onPause();
     }
 
@@ -592,8 +597,8 @@ public class MapsActivity extends FragmentActivity {
         mMap.setMyLocationEnabled(true);
         if(currentLocation != null){
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), 16));
-        } else {
-            Toast.makeText(this, "Location not find", Toast.LENGTH_SHORT);
+            btn_share.setVisibility(View.VISIBLE);
+            layout_addSharing.setVisibility(View.VISIBLE);
         }
     }
 
@@ -625,8 +630,8 @@ public class MapsActivity extends FragmentActivity {
 
     public double estimatedDuration(){
         double speed = velocity.getFinalVelocity();
-        if(speed<1){
-            speed = 1.4;
+        if(speed<1){                // user is not walking
+            speed = 1.4;            //default human walking speed
         }
         double eDuration;
         eDuration = distance/(speed+userVelocity);
@@ -699,7 +704,7 @@ public class MapsActivity extends FragmentActivity {
                 DecimalFormat df = new DecimalFormat("#.##");
                 tv.setText(df.format(velocity.getFinalVelocity())+"\n"+df.format(velocity.getAccelerometerVelocity()));
             }
-            if(currentLocation!=null) {
+            if(currentLocation!=null && CommonUserList.getUserSharingList().size()>0) {
                 dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity(), velocity.getActivity());
             }
         }

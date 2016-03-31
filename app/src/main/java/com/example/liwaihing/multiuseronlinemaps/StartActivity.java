@@ -178,7 +178,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
         setProfilePic(personPhotoUrl);
         String[] googleID = email.split("@");
         SharedPreferences.Editor editor = settings.edit();
-        editor.putString("name", personName);
+        editor.putString("name", personName);           //save user info in local
         editor.putString("googleID", googleID[0]);
         editor.commit();
         progress_dialog.dismiss();
@@ -367,7 +367,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
             ByteArrayOutputStream baos=new  ByteArrayOutputStream();
             resultImg.compress(Bitmap.CompressFormat.PNG,100, baos);
             byte[] b=baos.toByteArray();
-            if(!settings.getBoolean("signedIn", false)){
+            if(!settings.getBoolean("signedIn", false)){            //first time to sign in
                 String temp=Base64.encodeToString(b, Base64.DEFAULT);
                 SharedPreferences.Editor editor = settings.edit();
                 editor.putString("profilePic", temp);

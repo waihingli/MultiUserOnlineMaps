@@ -58,8 +58,12 @@ public class Velocity {
 
     public void onSensorUpdate(long time, float[] vals){
         newTime = time;
-        acceleration = Math.sqrt(Math.pow(vals[0], 2) + Math.pow(vals[1], 2));
         acceSensorVals = vals;
+        if(isStep()){
+            acceleration = Math.sqrt(Math.pow(vals[0], 2) + Math.pow(vals[1], 2));
+        }else{
+            acceleration = 0;
+        }
         if (newTime > lastTime){
             accuAcceleration += acceleration*(newTime-lastTime);
         }
@@ -76,7 +80,7 @@ public class Velocity {
     public boolean isStep(){
         boolean isStep = false;
         double energy = Math.sqrt(Math.pow(acceSensorVals[0], 2) + Math.pow(acceSensorVals[1], 2) + Math.pow(acceSensorVals[2], 2));
-        if(energy>0.8 && energy<1.2)
+        if(energy<1.2)
         {
             isStep = true;
         }
@@ -93,17 +97,19 @@ public class Velocity {
 
     private void onAverageVelocity(double timePassed) {
         double a = (accuAcceleration /timePassed);
+        updateAccelerometerVelocity(a);
         accuVelocity += a;
         counter++;
         if(counter>=5){
             double averageV = accuVelocity/counter;
-            if(!isStep()){
-                if(Double.compare(finalVelocity, averageV)>0){
-                    updateAccelerometerVelocity(averageV);
-                }
-            }else{
-                updateAccelerometerVelocity(averageV);
-            }
+//            updateAccelerometerVelocity(averageV);
+//            if(!isStep()){
+//                if(Double.compare(finalVelocity, averageV)>0){
+//                    updateAccelerometerVelocity(averageV);
+//                }
+//            }else{
+//                updateAccelerometerVelocity(averageV);
+//            }
             accuVelocity = 0;
             counter = 0;
         }

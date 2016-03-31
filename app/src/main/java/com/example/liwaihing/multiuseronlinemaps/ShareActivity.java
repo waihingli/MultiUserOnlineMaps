@@ -4,12 +4,10 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
-import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
@@ -21,7 +19,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,7 +39,6 @@ public class ShareActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_share);
-
         ImageButton btn_back = (ImageButton) findViewById(R.id.btn_back);
         ImageButton btn_add = (ImageButton) findViewById(R.id.btn_add);
         btn_back.setOnClickListener(new View.OnClickListener() {
@@ -85,10 +81,10 @@ public class ShareActivity extends AppCompatActivity {
                                         public void onDataChange(DataSnapshot dataSnapshot) {
                                             if(dataSnapshot.hasChild(dbHelper.getGoogleID())){
                                                 if(dataSnapshot.child(dbHelper.getGoogleID()).getValue(String.class).equals("Pending")) {
-                                                    Toast.makeText(ShareActivity.this, "Invitation has been made.", Toast.LENGTH_SHORT);
+                                                    Toast.makeText(ShareActivity.this, "Invitation has been made.", Toast.LENGTH_SHORT).show();
                                                 }
                                             }else if(uClone.getIsSharing()){
-                                                Toast.makeText(ShareActivity.this, "Already sharing location.", Toast.LENGTH_SHORT);
+                                                Toast.makeText(ShareActivity.this, "Already sharing location.", Toast.LENGTH_SHORT).show();
                                             }else{
                                                 dbHelper.inviteUserSharing(uClone.getGoogleID());
                                             }

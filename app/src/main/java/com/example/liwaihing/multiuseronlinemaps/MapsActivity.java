@@ -69,7 +69,7 @@ public class MapsActivity extends FragmentActivity {
     private ImageButton btn_menu, btn_share;
     private TextView tv_Distance, tv_Duration, tv_myVelocity;
     private ImageView img_myActivity;
-    private LinearLayout layout_pos, layout_addSharing;
+    private LinearLayout layout_pos, layout_addSharing, layout_myPos;
     private double distance = 0;
     private ArrayList<LatLng> markerPoints;
     private ArrayList<UserPosition> userPositionList;
@@ -105,6 +105,8 @@ public class MapsActivity extends FragmentActivity {
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
         tv_myVelocity = (TextView) findViewById(R.id.tv_myVelocity);
         img_myActivity = (ImageView) findViewById(R.id.img_myActivity);
+        layout_myPos = (LinearLayout) findViewById(R.id.layout_myPos);
+        layout_myPos.setVisibility(View.GONE);
         layout_pos = (LinearLayout) findViewById(R.id.layout_posDetail);
         layout_pos.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -720,6 +722,7 @@ public class MapsActivity extends FragmentActivity {
             }
             DecimalFormat df = new DecimalFormat("#.##");
             tv_myVelocity.setText(df.format(velocity.getFinalVelocity()) + " m/s ");
+            layout_myPos.setVisibility(View.VISIBLE);
             if(currentLocation!=null && CommonUserList.getUserSharingList().size()>0) {
                 dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity(), velocity.getActivity());
             }

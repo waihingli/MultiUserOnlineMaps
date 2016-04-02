@@ -185,8 +185,8 @@ public class ShareActivity extends AppCompatActivity {
         String user = CommonUserList.getShareList().get(position);
         if (item.getItemId() == R.id.action_delete) {
             for (UserProfile u : CommonUserList.getUserProfileList()) {
-                final UserProfile uClone = u;
                 if (u.getUserProfile(user) != null) {
+                    final UserProfile uClone = u;
                     if (u.getIsSharing()) {
                         AlertDialog.Builder builder = new AlertDialog.Builder(ShareActivity.this);
                         builder.setMessage("Delete " + uClone.getDisplayName() + "? Sharing location will be stopped. ")
@@ -208,6 +208,7 @@ public class ShareActivity extends AppCompatActivity {
                         onDeleteShareList(uClone);
                     }
                 }
+                break;
             }
         }
         return super.onContextItemSelected(item);

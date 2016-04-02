@@ -94,6 +94,31 @@
                     </RelativeLayout>
                 </LinearLayout>
             </LinearLayout>
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/white"
+                android:layout_alignParentBottom="true">
+
+                <ImageView
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:id="@+id/img_myActivity"
+                    android:layout_marginLeft="30dp"
+                    android:layout_gravity="center_vertical" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="New Text"
+                    android:id="@+id/tv_myVelocity"
+                    android:textAppearance="?android:attr/textAppearanceMedium"
+                    android:layout_gravity="center_vertical"
+                    android:layout_margin="10dp"
+                    android:paddingLeft="30dp" />
+            </LinearLayout>
         </RelativeLayout>
     </LinearLayout>
 

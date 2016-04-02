@@ -4,8 +4,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
 
-import com.firebase.client.Firebase;
-
 /**
  * Created by WaiHing on 8/3/2016.
  */

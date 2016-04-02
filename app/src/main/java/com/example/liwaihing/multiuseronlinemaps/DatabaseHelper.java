@@ -5,14 +5,11 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.location.Location;
-import android.provider.ContactsContract;
 import android.util.Base64;
-
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -25,12 +22,12 @@ public class DatabaseHelper {
     public static final String PATH = "https://multiuseronlinemap.firebaseio.com/";
     private Firebase myFireBaseRef = new Firebase(PATH);
     private SharedPreferences settings;
-    private String displayname, googleID, profilePic;
+    private String displayName, googleID, profilePic;
     private Bitmap profilePicture;
 
     protected DatabaseHelper(Context context){
         settings = context.getSharedPreferences("user_auth", Context.MODE_PRIVATE);
-        displayname = settings.getString("name", "");
+        displayName = settings.getString("name", "");
         googleID = settings.getString("googleID", "");
         profilePic = settings.getString("profilePic", "");
         updateUserProfile();
@@ -40,8 +37,8 @@ public class DatabaseHelper {
         return googleID;
     }
 
-    public String getDisplayname(){
-        return displayname;
+    public String getDisplayName(){
+        return displayName;
     }
 
     public Bitmap getProfilePicture() {
@@ -62,7 +59,7 @@ public class DatabaseHelper {
 
     private void updateUserProfile(){
         Firebase profileRef = getUserProfilePath(googleID);
-        profileRef.child("Name").setValue(displayname);
+        profileRef.child("Name").setValue(displayName);
         profileRef.child("ID").setValue(googleID);
         profileRef.child("Picture").setValue(profilePic);
     }

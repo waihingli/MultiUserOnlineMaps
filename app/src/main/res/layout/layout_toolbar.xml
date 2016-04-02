@@ -1,18 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--<android.support.v7.widget.Toolbar-->
-    <!--xmlns:android="http://schemas.android.com/apk/res/android"-->
-    <!--xmlns:app="http://schemas.android.com/apk/res-auto"-->
-    <!--android:layout_width="match_parent" android:layout_height="wrap_content"-->
-    <!--android:id="@+id/toolbar"-->
-    <!--android:background="@color/actionbar_bg"-->
-    <!--android:minHeight="?attr/actionBarSize"-->
-    <!--android:fitsSystemWindows="true"-->
-    <!--app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"-->
-    <!-->-->
-
-<!--</android.support.v7.widget.Toolbar>-->
-
-
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="horizontal" android:layout_width="match_parent"
@@ -25,15 +11,6 @@
         android:id="@+id/btn_menu"
         android:layout_marginLeft="10dp"
         android:background="@drawable/menu_icon"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:textColor="#FFFFFF"
-        android:text="Large Text"
-        android:id="@+id/textView"
-        android:layout_centerHorizontal="true" />
 
     <ImageButton
         android:layout_width="45dp"

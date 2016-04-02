@@ -32,8 +32,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import com.firebase.client.ChildEventListener;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
@@ -48,11 +46,9 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -65,13 +61,14 @@ import java.util.HashMap;
 import java.util.List;
 
 public class MapsActivity extends FragmentActivity {
-    private GoogleMap mMap; // Might be null if Google Play services APK is not available.
+    private GoogleMap mMap;
     private Location currentLocation = null;
     private Velocity velocity;
     private DatabaseHelper dbHelper;
     private MyBroadcastReceiver myBroadcastReceiver;
     private ImageButton btn_menu, btn_share;
-    private TextView tv_Distance, tv_Duration, tv;
+    private TextView tv_Distance, tv_Duration, tv_myVelocity;
+    private ImageView img_myActivity;
     private LinearLayout layout_pos, layout_addSharing;
     private double distance = 0;
     private ArrayList<LatLng> markerPoints;
@@ -81,6 +78,7 @@ public class MapsActivity extends FragmentActivity {
     private ListView drawerList;
     private DrawerListAdapter listAdapter;
     private double userVelocity;
+    private boolean onReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,7 +103,8 @@ public class MapsActivity extends FragmentActivity {
         btn_share.setOnClickListener(onClickShare);
         tv_Distance = (TextView) findViewById(R.id.tv_distance);
         tv_Duration = (TextView) findViewById(R.id.tv_duration);
-        tv = (TextView) findViewById(R.id.textView);
+        tv_myVelocity = (TextView) findViewById(R.id.tv_myVelocity);
+        img_myActivity = (ImageView) findViewById(R.id.img_myActivity);
         layout_pos = (LinearLayout) findViewById(R.id.layout_posDetail);
         layout_pos.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -137,7 +136,7 @@ public class MapsActivity extends FragmentActivity {
         TextView tv_name = (TextView) findViewById(R.id.userName);
         TextView tv_googleid = (TextView) findViewById(R.id.googleID);
         ImageView img_pic = (ImageView) findViewById(R.id.profilePicture);
-        tv_name.setText(dbHelper.getDisplayname());
+        tv_name.setText(dbHelper.getDisplayName());
         tv_googleid.setText(dbHelper.getGoogleID() + "@gmail.com");
         img_pic.setImageBitmap(dbHelper.getProfilePicture());
         this.registerForContextMenu(drawerList);
@@ -522,9 +521,13 @@ public class MapsActivity extends FragmentActivity {
         if(polyline!=null){
             polyline.remove();
         }
-
-        Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
-        inviteRef.addChildEventListener(onInviteListener);
+        if(currentLocation!=null){
+            if(!onReady){
+                Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
+                inviteRef.addChildEventListener(onInviteListener);
+                onReady = true;
+            }
+        }
     }
 
     @Override
@@ -551,8 +554,11 @@ public class MapsActivity extends FragmentActivity {
 
     @Override
     protected void onPause() {
-        Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
-        inviteRef.removeEventListener(onInviteListener);                    //show invite dialog only in active window
+        if(onReady){
+            Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
+            inviteRef.removeEventListener(onInviteListener);                    //show invite dialog only in active window
+            onReady = false;
+        }
         super.onPause();
     }
 
@@ -693,6 +699,11 @@ public class MapsActivity extends FragmentActivity {
                 if(currentLocation == null){
                     currentLocation = (Location) bundle.get(Constants.LOCATION_LOCATION);
                     setUpMap();
+                    if(!onReady){
+                        Firebase inviteRef = dbHelper.getUserInvitationPath(dbHelper.getGoogleID());
+                        inviteRef.addChildEventListener(onInviteListener);
+                        onReady = true;
+                    }
                 }
                 currentLocation = (Location) bundle.get(Constants.LOCATION_LOCATION);
                 velocity.onGPSUpdate(currentLocation);
@@ -701,9 +712,14 @@ public class MapsActivity extends FragmentActivity {
                 long time = bundle.getLong(Constants.SENSOR_TIME);
                 float[] vals = bundle.getFloatArray(Constants.SENSOR_ACCEVALS);
                 velocity.onSensorUpdate(time, vals);
-                DecimalFormat df = new DecimalFormat("#.##");
-                tv.setText(df.format(velocity.getFinalVelocity())+"\n"+df.format(velocity.getAccelerometerVelocity()));
             }
+            if(velocity.getActivity().toUpperCase().equals("VEHICLE")){
+                img_myActivity.setImageResource(R.drawable.vehicle_icon);
+            }else{
+                img_myActivity.setImageResource(R.drawable.walk_icon);
+            }
+            DecimalFormat df = new DecimalFormat("#.##");
+            tv_myVelocity.setText(df.format(velocity.getFinalVelocity()) + " m/s ");
             if(currentLocation!=null && CommonUserList.getUserSharingList().size()>0) {
                 dbHelper.updatePosition(currentLocation, velocity.getFinalVelocity(), velocity.getActivity());
             }

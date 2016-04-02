@@ -21,18 +21,13 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.TextView;
-
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.plus.Plus;
 import com.google.android.gms.plus.model.people.Person;
-import com.google.android.gms.common.api.Status;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -105,6 +100,7 @@ public class StartActivity extends Activity implements GoogleApiClient.OnConnect
     }
 
     private void connectionCheck(){
+        img_appIcon.setVisibility(View.VISIBLE);
         connection_layout = (LinearLayout) findViewById(R.id.layout_connection);
         connection_layout.setVisibility(View.GONE);
         btn_SignIn.setVisibility(View.GONE);

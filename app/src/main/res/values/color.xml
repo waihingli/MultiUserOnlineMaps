@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="actionbar_bg">#631d1d</color>
-    <color name="posdetail_bg">#FFFFFF</color>
+    <color name="posdetail_bg">#FFFFE6</color>
 
 </resources>

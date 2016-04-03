@@ -110,66 +110,69 @@ public class ShareActivity extends AppCompatActivity {
 
     private void setUpListener(){
         final Firebase shareListRef = dbHelper.getUserShareListPath();
-        shareListRef.addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                final String user = dataSnapshot.getValue(String.class);
-                boolean exist = false;
-                for (String name : CommonUserList.getShareList()) {
-                    if (name.equals(user)) {
-                        exist = true;
-                    }
-                }
-                if (!exist) {
-                    CommonUserList.addShareList(user);
-                }
-                boolean userExist = false;
-                for (UserProfile u : CommonUserList.getUserProfileList()) {
-                    if (u.getUserProfile(user) != null) {
-                        userExist = true;
-                    }
-                }
-                if (!userExist) {
-                    Firebase ref = dbHelper.getUserProfilePath(user);
-                    ref.addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(DataSnapshot d) {
-                            UserProfile userPro = new UserProfile(user);
-                            userPro.setDisplayName(d.child("Name").getValue(String.class));
-                            userPro.setProfilePic(d.child("Picture").getValue(String.class));
-                            CommonUserList.addUserProfileList(userPro);
-                            listAdapter.notifyDataSetChanged();
-                        }
-
-                        @Override
-                        public void onCancelled(FirebaseError firebaseError) {
-
-                        }
-                    });
-                }
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-                listAdapter.notifyDataSetChanged();
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-
-            }
-        });
+        shareListRef.addChildEventListener(shareListEventListener);
     }
+
+    private ChildEventListener shareListEventListener = new ChildEventListener() {
+
+        @Override
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+            final String user = dataSnapshot.getValue(String.class);
+            boolean exist = false;
+            for (String name : CommonUserList.getShareList()) {
+                if (name.equals(user)) {
+                    exist = true;
+                }
+            }
+            if (!exist) {
+                CommonUserList.addShareList(user);
+            }
+            boolean userExist = false;
+            for (UserProfile u : CommonUserList.getUserProfileList()) {
+                if (u.getUserProfile(user) != null) {
+                    userExist = true;
+                }
+            }
+            if (!userExist) {
+                Firebase ref = dbHelper.getUserProfilePath(user);
+                ref.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot d) {
+                        UserProfile userPro = new UserProfile(user);
+                        userPro.setDisplayName(d.child("Name").getValue(String.class));
+                        userPro.setProfilePic(d.child("Picture").getValue(String.class));
+                        CommonUserList.addUserProfileList(userPro);
+                        listAdapter.notifyDataSetChanged();
+                    }
+
+                    @Override
+                    public void onCancelled(FirebaseError firebaseError) {
+
+                    }
+                });
+            }
+        }
+
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+            listAdapter.notifyDataSetChanged();
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
+    };
 
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
@@ -207,8 +210,8 @@ public class ShareActivity extends AppCompatActivity {
                     } else {
                         onDeleteShareList(uClone);
                     }
+                    break;
                 }
-                break;
             }
         }
         return super.onContextItemSelected(item);
@@ -315,6 +318,8 @@ public class ShareActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        final Firebase shareListRef = dbHelper.getUserShareListPath();
+        shareListRef.removeEventListener(shareListEventListener);
         super.onDestroy();
     }
 

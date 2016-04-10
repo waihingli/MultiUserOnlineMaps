@@ -192,15 +192,9 @@ public class ShareActivity extends AppCompatActivity {
                     final UserProfile uClone = u;
                     if (u.getIsSharing()) {
                         AlertDialog.Builder builder = new AlertDialog.Builder(ShareActivity.this);
-                        builder.setMessage("Delete " + uClone.getDisplayName() + "? Sharing location will be stopped. ")
+                        builder.setMessage("Please stop location sharing before deleting " + uClone.getDisplayName() + ".")
                                 .setCancelable(false)
-                                .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
-                                    public void onClick(@SuppressWarnings("unused") DialogInterface dialog, @SuppressWarnings("unused") int id) {
-                                        onStopSharing(uClone);
-                                        onDeleteShareList(uClone);
-                                    }
-                                })
-                                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                .setNegativeButton("Ok", new DialogInterface.OnClickListener() {
                                     public void onClick(DialogInterface dialog, @SuppressWarnings("unused") int id) {
                                         dialog.cancel();
                                     }
@@ -215,15 +209,6 @@ public class ShareActivity extends AppCompatActivity {
             }
         }
         return super.onContextItemSelected(item);
-    }
-
-    private void onStopSharing(UserProfile u){
-        CommonUserList.removeUserSharingList(u.getGoogleID());
-        CommonUserList.removeSharingProfileList(u);
-        u.setIsSharing(false);
-        listAdapter.notifyDataSetChanged();
-        dbHelper.removeSharingUser(dbHelper.getGoogleID(), u.getGoogleID());
-        dbHelper.removeSharingUser(u.getGoogleID(), dbHelper.getGoogleID());
     }
 
     private void onDeleteShareList(UserProfile u){
